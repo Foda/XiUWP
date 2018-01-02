@@ -17,8 +17,6 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 using XiUWP.ViewModel;
 
-// The User Control item template is documented at https://go.microsoft.com/fwlink/?LinkId=234236
-
 namespace XiUWP.View
 {
     public sealed partial class TextCanvasView : UserControl
@@ -34,9 +32,9 @@ namespace XiUWP.View
 
             _charsToSkip = new HashSet<char>()
             {
-                '\b', //Backspace
-                '\n', //Newline
-                '\r', //Return
+                '\b', // Backspace
+                '\n', // Newline
+                '\r', // Return
             };
         }
 
@@ -82,6 +80,18 @@ namespace XiUWP.View
             e.Handled = true;
             RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerPressed(e.GetCurrentPoint(RootCanvas).Position);
+        }
+
+        private void RootCanvas_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            Windows.UI.Xaml.Window.Current.CoreWindow.PointerCursor = 
+                new Windows.UI.Core.CoreCursor(Windows.UI.Core.CoreCursorType.IBeam, 1);
+        }
+
+        private void RootCanvas_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            Windows.UI.Xaml.Window.Current.CoreWindow.PointerCursor = 
+                new Windows.UI.Core.CoreCursor(Windows.UI.Core.CoreCursorType.Arrow, 1);
         }
     }
 }

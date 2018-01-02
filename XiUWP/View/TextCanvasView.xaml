@@ -10,7 +10,28 @@
     d:DesignHeight="300"
     d:DesignWidth="400">
 
-    <Grid Background="#FAFBFC">
-        <canvas:CanvasControl x:Name="RootCanvas" Margin="12"/>
+    <Grid Background="#FAFBFC" Padding="12">
+        <canvas:CanvasControl x:Name="RootCanvas" 
+                              PointerEntered="RootCanvas_PointerEntered"
+                              PointerExited="RootCanvas_PointerExited"/>
+
+        <Canvas IsHitTestVisible="False">
+            <Rectangle Width="2" Height="16" x:Name="CanvasCursor" Fill="Red"
+                       Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
+                <Rectangle.Triggers>
+                    <EventTrigger RoutedEvent="Rectangle.Loaded">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation 
+                                    Storyboard.TargetName="CanvasCursor"
+                                    Storyboard.TargetProperty="(Rectangle.Opacity)" 
+                                    From="1" To="0" Duration="0:0:0.3" AutoReverse="True"  
+                                    RepeatBehavior="Forever"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </Rectangle.Triggers>
+            </Rectangle>
+        </Canvas>
     </Grid>
 </UserControl>

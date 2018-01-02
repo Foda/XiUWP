@@ -29,6 +29,20 @@ namespace XiUWP.ViewModel
         private Vector2 _cursorPosition;
         private int _cursorIndex = 0;
 
+        private float _cursorLeft = 0;
+        public float CursorLeft
+        {
+            get { return _cursorLeft; }
+            private set { this.RaiseAndSetIfChanged(ref _cursorLeft, value); }
+        }
+
+        private float _cursorTop = 0;
+        public float CursorTop
+        {
+            get { return _cursorTop; }
+            private set { this.RaiseAndSetIfChanged(ref _cursorTop, value); }
+        }
+
         private object LINE_LOCK = new object();
 
         public TextViewModel(CanvasControl rootCanvas)
@@ -68,8 +82,9 @@ namespace XiUWP.ViewModel
                     var posYOffset = position.Y - yOffset;
                     if (line.HitTest((float)position.X, (float)posYOffset, out hitRegion))
                     {
-                        _cursorPosition = line.GetCaretPosition(hitRegion.CharacterIndex, false);
-                        _cursorPosition.Y = _cursorPosition.Y + yOffset;
+                        var pos = line.GetCaretPosition(hitRegion.CharacterIndex, false);
+                        CursorLeft = pos.X;
+                        CursorTop = pos.Y + yOffset;
 
                         _xiService.Click(idx, hitRegion.CharacterIndex, 0, 1);
                         break;
@@ -229,8 +244,9 @@ namespace XiUWP.ViewModel
 
                     if (i == cursorLine)
                     {
-                        _cursorPosition = _lineLayouts[cursorLine].GetCaretPosition(cursorIdx, false);
-                        _cursorPosition.Y = _cursorPosition.Y + yOffset;
+                        var pos = _lineLayouts[cursorLine].GetCaretPosition(cursorIdx, false);
+                        CursorLeft = pos.X;
+                        CursorTop = pos.Y + yOffset;
                     }
 
                     yOffset += (int)(textLayout.LayoutBoundsIncludingTrailingWhitespace.Height);
@@ -243,7 +259,6 @@ namespace XiUWP.ViewModel
 
         private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
-            //args.DrawingSession.TextAntialiasing = CanvasTextAntialiasing.ClearType;
             int yOffset = 0;
 
             lock (LINE_LOCK)
@@ -256,9 +271,6 @@ namespace XiUWP.ViewModel
                     yOffset += Math.Max(16, (int)(line.LayoutBoundsIncludingTrailingWhitespace.Height));
                 }
             }
-
-            args.DrawingSession.DrawLine(_cursorPosition, _cursorPosition + new Vector2(0, 12),
-                Windows.UI.Colors.Red, 2);
         }
     }
 }
