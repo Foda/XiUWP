@@ -1,0 +1,45 @@
+﻿<Page
+    x:Class="XiUWP.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:XiUWP"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:view="using:XiUWP.View"
+    xmlns:uwp="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    mc:Ignorable="d">
+
+    <Grid Background="{StaticResource ADG3DaJuice}" Padding="16,32,0,0">
+        <SplitView x:Name="splitView" PaneBackground="Transparent"
+                   IsPaneOpen="False" OpenPaneLength="256" CompactPaneLength="48"
+                   DisplayMode="CompactInline">
+            <SplitView.Pane>
+                <Grid>
+                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,0,0,24">
+                        <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent">
+                            <StackPanel Orientation="Horizontal">
+                                <SymbolIcon Symbol="OpenFile"/>
+                                <TextBlock Text="New File" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                                Margin="0,16,0,0" Click="Button_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <SymbolIcon Symbol="Save"/>
+                                <TextBlock Text="Save" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </SplitView.Pane>
+
+            <uwp:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                 OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
+                                 ShadowOpacity="0.25">
+                <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                     x:Name="RootTextView"/>
+            </uwp:DropShadowPanel>
+        </SplitView>
+    </Grid>
+</Page>
