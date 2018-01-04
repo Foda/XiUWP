@@ -21,9 +21,17 @@ namespace XiUWP.Service
         private readonly Subject<XiUpdateOperation> _xiUpdateSubject =
             new Subject<XiUpdateOperation>();
 
+        private readonly Subject<XiStyleMsg> _xiSetStyleSubject =
+            new Subject<XiStyleMsg>();
+
         public IObservable<XiUpdateOperation> UpdateObservable
         {
             get { return _xiUpdateSubject.AsObservable(); }
+        }
+
+        public IObservable<XiStyleMsg> StyleObservable
+        {
+            get { return _xiSetStyleSubject.AsObservable(); }
         }
 
         public XIService()
@@ -35,7 +43,7 @@ namespace XiUWP.Service
         {
             var valueSet = new ValueSet();
             valueSet.Add("operation", "new_view");
-            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
+            valueSet.Add("file_path", @"C:\Projects\Test\document.md");
 
             var reply = await App.Connection.SendMessageAsync(valueSet);
             ViewID = reply.Message["view_id"].ToString();
@@ -46,7 +54,7 @@ namespace XiUWP.Service
             var valueSet = new ValueSet();
             valueSet.Add("operation", "save");
             valueSet.Add("view_id", ViewID);
-            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
+            valueSet.Add("file_path", @"C:\Projects\Test\document.md");
 
             await App.Connection.SendMessageAsync(valueSet);
         }
@@ -75,6 +83,7 @@ namespace XiUWP.Service
         /// move_down
         /// move_left
         /// move_right
+        /// move_to_left_end_of_line
         /// scroll_page_up
         /// undo
         /// redo
@@ -108,7 +117,9 @@ namespace XiUWP.Service
             Windows.ApplicationModel.AppService.AppServiceRequestReceivedEventArgs args)
         {
             var message = args.Request.Message;
-            if (message["method"].ToString() == "update")
+            var method = message["method"].ToString();
+
+            if (method == "update")
             {
                 try
                 {
@@ -117,6 +128,21 @@ namespace XiUWP.Service
 
                     // Only actually care about the meat of the update
                     _xiUpdateSubject.OnNext(update.Update);
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+
+            if (method == "set_style")
+            {
+                try
+                {
+                    var json = message["parameters"].ToString();
+                    var update = JsonConvert.DeserializeObject<XiStyleMsg>(json);
+                    
+                    _xiSetStyleSubject.OnNext(update);
                 }
                 catch (JsonException ex)
                 {

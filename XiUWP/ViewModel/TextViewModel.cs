@@ -14,6 +14,7 @@ using Windows.Foundation;
 using Windows.System;
 using XiUWP.Service;
 using Windows.UI.Xaml;
+using System.Diagnostics;
 
 namespace XiUWP.ViewModel
 {
@@ -26,6 +27,7 @@ namespace XiUWP.ViewModel
         private CanvasTextFormat _textFormat;
         private List<CanvasTextLayout> _lineLayouts = new List<CanvasTextLayout>();
         private List<string> _oldLines = new List<string>();
+        private string _currentLine = "";
         private Vector2 _cursorPosition;
         private int _cursorIndex = 0;
 
@@ -53,9 +55,14 @@ namespace XiUWP.ViewModel
             _textFormat = new CanvasTextFormat();
             _textFormat.FontFamily = "Segoe UI";
             _textFormat.FontSize = 12;
+            _textFormat.WordWrapping = CanvasWordWrapping.NoWrap;
 
             _xiService = new XIService();
             _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update));
+            _xiService.StyleObservable.Subscribe(update =>
+            {
+                Debug.WriteLine(update.ID);
+            });
 
             Task.Run(_xiService.OpenNewView);
         }
@@ -75,24 +82,34 @@ namespace XiUWP.ViewModel
             {
                 var offsetBounds = new Rect(0, yOffset,
                     _rootCanvas.ActualWidth,
-                    line.LayoutBoundsIncludingTrailingWhitespace.Height);
+                    line.LayoutBounds.Height);
 
                 if (offsetBounds.Contains(position))
                 {
                     var posYOffset = position.Y - yOffset;
+
+                    // Try and get the position inside the line of text
                     if (line.HitTest((float)position.X, (float)posYOffset, out hitRegion))
                     {
-                        var pos = line.GetCaretPosition(hitRegion.CharacterIndex, false);
-                        CursorLeft = pos.X;
-                        CursorTop = pos.Y + yOffset;
-
-                        _xiService.Click(idx, hitRegion.CharacterIndex, 0, 1);
-                        break;
+                        _cursorIndex = hitRegion.CharacterIndex;
                     }
+                    else
+                    {
+                        // Position wasn't actually inside the bounds, so set it to the end of the line
+                        _cursorIndex = _oldLines[idx].Length;
+                    }
+
+                    var pos = line.GetCaretPosition(_cursorIndex, false);
+                    CursorLeft = pos.X;
+                    CursorTop = pos.Y + yOffset;
+                    _currentLine = _oldLines[idx];
+
+                    _xiService.Click(idx, _cursorIndex, 0, 1);
+                    break;
                 }
 
                 idx++;
-                yOffset += (int)(line.LayoutBoundsIncludingTrailingWhitespace.Height);
+                yOffset += (int)(line.LayoutBounds.Height);
             }
 
             _rootCanvas.Invalidate();
@@ -139,7 +156,15 @@ namespace XiUWP.ViewModel
                     _xiService.GenericEdit("move_left");
                     break;
                 case VirtualKey.Right:
-                    _xiService.GenericEdit("move_right");
+                    if (_cursorIndex + 1 >= _currentLine.Length)
+                    {
+                        _xiService.GenericEdit("move_down");
+                        _xiService.GenericEdit("move_to_left_end_of_line");
+                    }
+                    else
+                    {
+                        _xiService.GenericEdit("move_right");
+                    }
                     break;
                 case VirtualKey.Z:
                     if (hasCtrlMod)
@@ -175,7 +200,6 @@ namespace XiUWP.ViewModel
             var oldIdx = 0;
             var newLines = new List<string>();
             var cursorLine = -1;
-            var cursorIdx = 0;
             
             foreach (var op in update.Operations)
             {
@@ -209,12 +233,12 @@ namespace XiUWP.ViewModel
                             // It does not update old_ix.
                             foreach (var line in op.Lines)
                             {
-                                newLines.Add(line.Text);
+                                newLines.Add(line.Text.Trim());
 
                                 if (line.Cursor != null)
                                 {
                                     cursorLine = newLines.Count - 1;
-                                    cursorIdx = line.Cursor[0];
+                                    _cursorIndex = line.Cursor[0];
                                 }
                             }
                         }
@@ -244,12 +268,12 @@ namespace XiUWP.ViewModel
 
                     if (i == cursorLine)
                     {
-                        var pos = _lineLayouts[cursorLine].GetCaretPosition(cursorIdx, false);
+                        var pos = _lineLayouts[cursorLine].GetCaretPosition(_cursorIndex, false);
                         CursorLeft = pos.X;
                         CursorTop = pos.Y + yOffset;
                     }
 
-                    yOffset += (int)(textLayout.LayoutBoundsIncludingTrailingWhitespace.Height);
+                    yOffset += (int)(textLayout.LayoutBounds.Height);
                 }
             });
 
@@ -260,7 +284,7 @@ namespace XiUWP.ViewModel
         private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
             int yOffset = 0;
-
+            
             lock (LINE_LOCK)
             {
                 foreach (var line in _lineLayouts)
@@ -268,7 +292,7 @@ namespace XiUWP.ViewModel
                     args.DrawingSession.DrawTextLayout(line,
                             new Vector2(0, yOffset), Windows.UI.Colors.Black);
 
-                    yOffset += Math.Max(16, (int)(line.LayoutBoundsIncludingTrailingWhitespace.Height));
+                    yOffset += (int)(line.LayoutBounds.Height);
                 }
             }
         }
