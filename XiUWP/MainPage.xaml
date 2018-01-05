@@ -9,13 +9,13 @@
     xmlns:uwp="using:Microsoft.Toolkit.Uwp.UI.Controls"
     mc:Ignorable="d">
 
-    <Grid Background="{StaticResource ADG3DaJuice}" Padding="16,32,0,0">
+    <Grid Background="{StaticResource ADG3DaJuice}" Padding="16,10,0,0">
         <SplitView x:Name="splitView" PaneBackground="Transparent"
                    IsPaneOpen="False" OpenPaneLength="256" CompactPaneLength="48"
                    DisplayMode="CompactInline">
             <SplitView.Pane>
                 <Grid>
-                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,0,0,24">
+                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24">
                         <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="OpenFile"/>
@@ -34,12 +34,42 @@
                 </Grid>
             </SplitView.Pane>
 
-            <uwp:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                 OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
-                                 ShadowOpacity="0.25">
-                <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                     x:Name="RootTextView"/>
-            </uwp:DropShadowPanel>
+            <Grid>
+                <uwp:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                     OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
+                                     ShadowOpacity="0.25" Margin="0,60,0,0">
+                    <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                         x:Name="RootTextView"/>
+                </uwp:DropShadowPanel>
+                
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,20,0,0"
+                            x:Name="ControlToolbar">
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                            FontFamily="Segoe MDL2 Assets" Content="&#xE8DD;" Height="40"
+                            x:Name="BoldSelectionButton" Click="BoldSelectionButton_Click"/>
+
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                            FontFamily="Segoe MDL2 Assets" Content="&#xE8DB;" Height="40"
+                            x:Name="ItalicSelectionButton"/>
+
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                            Height="40" x:Name="HeaderLineOneButton" Click="HeaderLineOneButton_Click">
+                        <TextBlock OpticalMarginAlignment="TrimSideBearings" CharacterSpacing="-100">
+                            <Run Text="H" FontWeight="Bold"/>
+                            <Run Text="1" FontSize="10"/>
+                        </TextBlock>
+                    </Button>
+                    
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent" Margin="40,0,0,0"
+                            FontFamily="Segoe MDL2 Assets" Content="&#xE8FD;" Height="40"/>
+                    
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                            FontFamily="Segoe MDL2 Assets" Content="&#xE71B;" Height="40"/>
+
+                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
+                            FontFamily="Segoe MDL2 Assets" Content="&#xEB9F;" Height="40"/>
+                </StackPanel>
+            </Grid>
         </SplitView>
     </Grid>
 </Page>

@@ -137,10 +137,10 @@ namespace XiBackend
                     editMsg.Add("params", insertParams);
                 }
 
-                if (method == "click")
+                if (method == "click" || method == "scroll" || method == "drag")
                 {
-                    var clickParams = args.Request.Message["params"] as int[];
-                    editMsg.Add("params", clickParams);
+                    var intArrayParams = args.Request.Message["params"] as int[];
+                    editMsg.Add("params", intArrayParams);
                 }
 
                 var req = new Dictionary<string, dynamic>

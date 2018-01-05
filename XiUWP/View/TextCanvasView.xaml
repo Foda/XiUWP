@@ -16,7 +16,7 @@
                               PointerExited="RootCanvas_PointerExited"/>
 
         <Canvas IsHitTestVisible="False">
-            <Rectangle Width="2" Height="16" x:Name="CanvasCursor" Fill="Red"
+            <Rectangle Width="2" Height="16" x:Name="CanvasCursor" Fill="Black"
                        Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
                 <Rectangle.Triggers>
                     <EventTrigger RoutedEvent="Rectangle.Loaded">
@@ -25,7 +25,7 @@
                                 <DoubleAnimation 
                                     Storyboard.TargetName="CanvasCursor"
                                     Storyboard.TargetProperty="(Rectangle.Opacity)" 
-                                    From="1" To="0.2" Duration="0:0:0.3" AutoReverse="True"  
+                                    From="1" To="0" Duration="0:0:0.2" AutoReverse="True"  
                                     RepeatBehavior="Forever"/>
                             </Storyboard>
                         </BeginStoryboard>

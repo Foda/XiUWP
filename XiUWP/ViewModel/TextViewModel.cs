@@ -15,6 +15,7 @@ using Windows.System;
 using XiUWP.Service;
 using Windows.UI.Xaml;
 using System.Diagnostics;
+using XiUWP.Model;
 
 namespace XiUWP.ViewModel
 {
@@ -25,11 +26,14 @@ namespace XiUWP.ViewModel
 
         private CanvasControl _rootCanvas;
         private CanvasTextFormat _textFormat;
-        private List<CanvasTextLayout> _lineLayouts = new List<CanvasTextLayout>();
-        private List<string> _oldLines = new List<string>();
+        private List<LineSpan> _lines = new List<LineSpan>();
         private string _currentLine = "";
-        private Vector2 _cursorPosition;
         private int _cursorIndex = 0;
+        private int _cursorLineIndex = 0;
+
+        private Windows.UI.Color _selectColor;
+
+        private bool _isScrollDirty = true;
 
         private float _cursorLeft = 0;
         public float CursorLeft
@@ -57,6 +61,8 @@ namespace XiUWP.ViewModel
             _textFormat.FontSize = 12;
             _textFormat.WordWrapping = CanvasWordWrapping.NoWrap;
 
+            _selectColor = Windows.UI.Color.FromArgb(128, 0, 120, 215);
+            
             _xiService = new XIService();
             _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update));
             _xiService.StyleObservable.Subscribe(update =>
@@ -74,45 +80,60 @@ namespace XiUWP.ViewModel
 
         public void PointerPressed(Point position)
         {
+            var lineAndIndex = GetLineAndCursorIndexFromPos(position);
+            var lineIndex = lineAndIndex.Item1;
+            var charIndex = lineAndIndex.Item2;
+
+            _xiService.Click(lineIndex, charIndex, 0, 1);
+
+            _rootCanvas.Invalidate();
+        }
+
+        public void PointerReleased(Point position)
+        {
+            var lineAndIndex = GetLineAndCursorIndexFromPos(position);
+            var lineIndex = lineAndIndex.Item1;
+            var charIndex = lineAndIndex.Item2;
+
+            _xiService.Drag(lineIndex, charIndex);
+        }
+
+        private Tuple<int, int> GetLineAndCursorIndexFromPos(Point position)
+        {
             CanvasTextLayoutRegion hitRegion;
-            var idx = 0;
+            int cursorIdx = 0;
+            int cursorLine = 0;
+
             var yOffset = 0;
 
-            foreach (var line in _lineLayouts)
+            foreach (var line in _lines)
             {
                 var offsetBounds = new Rect(0, yOffset,
                     _rootCanvas.ActualWidth,
-                    line.LayoutBounds.Height);
+                    line.Bounds.Height);
 
                 if (offsetBounds.Contains(position))
                 {
                     var posYOffset = position.Y - yOffset;
 
                     // Try and get the position inside the line of text
-                    if (line.HitTest((float)position.X, (float)posYOffset, out hitRegion))
+                    if (line.TextLayout.HitTest((float)position.X, (float)posYOffset, out hitRegion))
                     {
-                        _cursorIndex = hitRegion.CharacterIndex;
+                        cursorIdx = hitRegion.CharacterIndex;
                     }
                     else
                     {
                         // Position wasn't actually inside the bounds, so set it to the end of the line
-                        _cursorIndex = _oldLines[idx].Length;
+                        cursorIdx = _lines[cursorLine].Text.Length;
                     }
-
-                    var pos = line.GetCaretPosition(_cursorIndex, false);
-                    CursorLeft = pos.X;
-                    CursorTop = pos.Y + yOffset;
-                    _currentLine = _oldLines[idx];
-
-                    _xiService.Click(idx, _cursorIndex, 0, 1);
                     break;
                 }
 
-                idx++;
-                yOffset += (int)(line.LayoutBounds.Height);
+                cursorLine++;
+                yOffset += (int)(line.Bounds.Height);
             }
 
-            _rootCanvas.Invalidate();
+            return new Tuple<int, int>(cursorLine, cursorIdx);
         }
 
         public void TextEntered(string character)
@@ -198,7 +219,7 @@ namespace XiUWP.ViewModel
         private async void UpdateTextView(XiUpdateOperation update)
         {
             var oldIdx = 0;
-            var newLines = new List<string>();
+            var newLines = new List<LineSpan>();
             var cursorLine = -1;
             
             foreach (var op in update.Operations)
@@ -215,7 +236,7 @@ namespace XiUWP.ViewModel
                         {
                             for (int i = oldIdx; i < oldIdx + op.LinesChangeCount; i++)
                             {
-                                newLines.Add(_oldLines[i]);
+                                newLines.Add(_lines[i]);
                             }
                             oldIdx += op.LinesChangeCount;
                             break;
@@ -233,12 +254,16 @@ namespace XiUWP.ViewModel
                             // It does not update old_ix.
                             foreach (var line in op.Lines)
                             {
-                                newLines.Add(line.Text.Trim());
+                                newLines.Add(new LineSpan(
+                                    line.Text.Trim(),
+                                    line.Style));
 
                                 if (line.Cursor != null)
                                 {
                                     cursorLine = newLines.Count - 1;
                                     _cursorIndex = line.Cursor[0];
+                                    _currentLine = line.Text;
+                                    _cursorLineIndex = cursorLine;
                                 }
                             }
                         }
@@ -253,32 +278,34 @@ namespace XiUWP.ViewModel
 
             await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
             {
-                _lineLayouts.Clear();
                 var yOffset = 0;
                 for (int i = 0; i < newLines.Count; i++)
                 {
-                    var textLayout = new CanvasTextLayout(
-                        _rootCanvas,
-                        newLines[i],
-                        _textFormat,
-                        (int)_rootCanvas.ActualWidth,
-                        (int)_rootCanvas.ActualHeight);
-
-                    _lineLayouts.Add(textLayout);
+                    newLines[i].Layout(_rootCanvas, _textFormat, 
+                        (int)_rootCanvas.ActualWidth, 
+                        (int)_rootCanvas.ActualHeight, 
+                        yOffset);
 
                     if (i == cursorLine)
                     {
-                        var pos = _lineLayouts[cursorLine].GetCaretPosition(_cursorIndex, false);
+                        var pos = newLines[cursorLine].GetCaretPosition(_cursorIndex);
                         CursorLeft = pos.X;
                         CursorTop = pos.Y + yOffset;
                     }
 
-                    yOffset += (int)(textLayout.LayoutBounds.Height);
+                    yOffset += (int)(newLines[i].Bounds.Height);
+                }
+
+                if (_isScrollDirty)
+                {
+                    var lineCount = (int)(_rootCanvas.ActualHeight / newLines[0].Bounds.Height);
+                    _xiService.Scroll(0, lineCount);
+                    _isScrollDirty = false;
                 }
             });
 
+            _lines = newLines;
             _rootCanvas.Invalidate();
-            _oldLines = newLines;
         }
 
         private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
@@ -287,13 +314,63 @@ namespace XiUWP.ViewModel
             
             lock (LINE_LOCK)
             {
-                foreach (var line in _lineLayouts)
+                foreach (var line in _lines)
                 {
-                    args.DrawingSession.DrawTextLayout(line,
+                    if (line.TextLayout == null)
+                        continue;
+
+                    args.DrawingSession.DrawTextLayout(line.TextLayout,
                             new Vector2(0, yOffset), Windows.UI.Colors.Black);
 
-                    yOffset += (int)(line.LayoutBounds.Height);
+                    if (line.HasSelectBounds)
+                        args.DrawingSession.FillRectangle(line.SelectBounds, _selectColor);
+
+                    yOffset += (int)(line.Bounds.Height);
                 }
+            }
+        }
+
+        public async Task BoldSelection()
+        {
+            await WrapSelectionInChars("**");
+        }
+
+        public async Task ItalicsSelection()
+        {
+            await WrapSelectionInChars("_");
+        }
+
+        public async Task HeaderCurrentLine(int headerLevel)
+        {
+            var headerBuilder = new StringBuilder();
+            for (int i = 0; i < headerLevel; i++)
+            {
+                headerBuilder.Append("#");
+            }
+            headerBuilder.Append(" ");
+
+            var oldCursorIndex = _cursorIndex + headerLevel;
+
+            await _xiService.Click(_cursorLineIndex, 0, 0, 1);
+            await _xiService.Insert(headerBuilder.ToString());
+            await _xiService.Click(_cursorLineIndex, oldCursorIndex, 0, 1);
+        }
+
+        private async Task WrapSelectionInChars(string whatToInsert)
+        {
+            for (int i = 0; i < _lines.Count; i++)
+            {
+                if (!_lines[i].HasSelectBounds)
+                    continue;
+
+                var startIdx = _lines[i].SelectedStartCharIndex;
+                var endIdx = _lines[i].SelectedEndCharIndex + 1;
+
+                await _xiService.Click(i, startIdx, 0, 1);
+                await _xiService.Insert(whatToInsert);
+
+                await _xiService.Click(i, endIdx, 0, 1);
+                await _xiService.Insert(whatToInsert);
             }
         }
     }

@@ -50,6 +50,7 @@ namespace XiUWP.View
 
             // Setup input events
             RootCanvas.PointerPressed += RootCanvas_PointerPressed;
+            RootCanvas.PointerReleased += RootCanvas_PointerReleased;
             Window.Current.CoreWindow.KeyDown += CoreWindow_KeyDown;
             Window.Current.CoreWindow.CharacterReceived += CoreWindow_CharacterReceived;
         }
@@ -80,6 +81,13 @@ namespace XiUWP.View
             e.Handled = true;
             RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerPressed(e.GetCurrentPoint(RootCanvas).Position);
+        }
+
+        private void RootCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            e.Handled = true;
+            RootCanvas.Focus(FocusState.Programmatic);
+            _viewModel.PointerReleased(e.GetCurrentPoint(RootCanvas).Position);
         }
 
         private void RootCanvas_PointerEntered(object sender, PointerRoutedEventArgs e)

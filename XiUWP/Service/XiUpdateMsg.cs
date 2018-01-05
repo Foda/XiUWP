@@ -44,5 +44,8 @@ namespace XiUWP.Service
 
         [JsonProperty("cursor")]
         public IList<int> Cursor { get; set; }
+
+        [JsonProperty("styles")]
+        public IList<int> Style { get; set; }
     }
 }

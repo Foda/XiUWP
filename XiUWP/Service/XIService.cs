@@ -113,6 +113,29 @@ namespace XiUWP.Service
             await App.Connection.SendMessageAsync(valueSet);
         }
 
+        public async Task Drag(int line, int column)
+        {
+            //line and column (0-based, utf-8 code units), modifiers (again, 2 is shift), and click count.
+            var valueSet = new ValueSet();
+            valueSet.Add("operation", "edit");
+            valueSet.Add("method", "drag");
+            valueSet.Add("view_id", ViewID);
+            valueSet.Add("params", new int[3] { line, column, 0 });
+
+            await App.Connection.SendMessageAsync(valueSet);
+        }
+
+        public async Task Scroll(int firstLineIdx, int lastLineIdx)
+        {
+            var valueSet = new ValueSet();
+            valueSet.Add("operation", "edit");
+            valueSet.Add("method", "scroll");
+            valueSet.Add("view_id", ViewID);
+            valueSet.Add("params", new int[2] { firstLineIdx, lastLineIdx });
+
+            await App.Connection.SendMessageAsync(valueSet);
+        }
+
         private void Connection_RequestReceived(Windows.ApplicationModel.AppService.AppServiceConnection sender,
             Windows.ApplicationModel.AppService.AppServiceRequestReceivedEventArgs args)
         {
