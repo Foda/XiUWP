@@ -24,6 +24,9 @@ namespace XiUWP.Service
         private readonly Subject<XiStyleMsg> _xiSetStyleSubject =
             new Subject<XiStyleMsg>();
 
+        private readonly Subject<XiScrollToMsg> _xiScrollSubject =
+            new Subject<XiScrollToMsg>();
+
         public IObservable<XiUpdateOperation> UpdateObservable
         {
             get { return _xiUpdateSubject.AsObservable(); }
@@ -32,6 +35,11 @@ namespace XiUWP.Service
         public IObservable<XiStyleMsg> StyleObservable
         {
             get { return _xiSetStyleSubject.AsObservable(); }
+        }
+
+        public IObservable<XiScrollToMsg> ScrollToObservable
+        {
+            get { return _xiScrollSubject.AsObservable(); }
         }
 
         public XIService()
@@ -43,7 +51,7 @@ namespace XiUWP.Service
         {
             var valueSet = new ValueSet();
             valueSet.Add("operation", "new_view");
-            valueSet.Add("file_path", @"C:\Projects\Test\document.md");
+            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
 
             var reply = await App.Connection.SendMessageAsync(valueSet);
             ViewID = reply.Message["view_id"].ToString();
@@ -54,7 +62,7 @@ namespace XiUWP.Service
             var valueSet = new ValueSet();
             valueSet.Add("operation", "save");
             valueSet.Add("view_id", ViewID);
-            valueSet.Add("file_path", @"C:\Projects\Test\document.md");
+            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
 
             await App.Connection.SendMessageAsync(valueSet);
         }
@@ -166,6 +174,21 @@ namespace XiUWP.Service
                     var update = JsonConvert.DeserializeObject<XiStyleMsg>(json);
                     
                     _xiSetStyleSubject.OnNext(update);
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+
+            if (method == "scroll_to")
+            {
+                try
+                {
+                    var json = message["parameters"].ToString();
+                    var update = JsonConvert.DeserializeObject<XiScrollToMsg>(json);
+
+                    _xiScrollSubject.OnNext(update);
                 }
                 catch (JsonException ex)
                 {

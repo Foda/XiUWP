@@ -15,7 +15,7 @@ namespace XiUWP.Model
         public string Text { get; }
         public IList<int> StyleBlocks { get; }
         public CanvasTextLayout TextLayout { get; private set; }
-
+        
         public Rect Bounds
         {
             get
@@ -26,9 +26,13 @@ namespace XiUWP.Model
                 return TextLayout.LayoutBounds;
             }
         }
+
         public Rect SelectBounds { get; private set; }
 
-        public bool HasSelectBounds { get; private set; }
+        public bool HasSelectBounds
+        {
+            get { return SelectBounds != Rect.Empty; }
+        }
 
         public int SelectedStartCharIndex
         {
@@ -45,14 +49,14 @@ namespace XiUWP.Model
             Text = text;
             StyleBlocks = styleBlocks;
             TextLayout = null;
+            SelectBounds = Rect.Empty;
         }
 
         public void Layout(
             ICanvasResourceCreator canvasResourceCreator, 
             CanvasTextFormat textFormat,
             int availableWidth, 
-            int availableHeight,
-            int verticalOffset)
+            int availableHeight)
         {
             if (TextLayout != null)
                 TextLayout.Dispose();
@@ -63,8 +67,8 @@ namespace XiUWP.Model
                         textFormat,
                         availableWidth,
                         availableHeight);
-
-            UpdateSelectionBounds(verticalOffset);
+            
+            UpdateSelectionBounds();
         }
 
         public Vector2 GetCaretPosition(int charIndex)
@@ -75,12 +79,10 @@ namespace XiUWP.Model
             return TextLayout.GetCaretPosition(charIndex, false);
         }
 
-        private void UpdateSelectionBounds(int verticalOffset)
+        private void UpdateSelectionBounds()
         {
             if (StyleBlocks.Count == 3)
             {
-                HasSelectBounds = true;
-
                 var startIdx = StyleBlocks[0];
                 var endIdx = startIdx + StyleBlocks[1];
 
@@ -89,7 +91,7 @@ namespace XiUWP.Model
 
                 SelectBounds = new Rect(
                     startPoint.X, 
-                    startPoint.Y + verticalOffset,
+                    0,
                     endPoint.X - startPoint.X,
                     Bounds.Height);
             }

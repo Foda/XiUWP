@@ -33,8 +33,6 @@ namespace XiUWP.ViewModel
 
         private Windows.UI.Color _selectColor;
 
-        private bool _isScrollDirty = true;
-
         private float _cursorLeft = 0;
         public float CursorLeft
         {
@@ -48,6 +46,31 @@ namespace XiUWP.ViewModel
             get { return _cursorTop; }
             private set { this.RaiseAndSetIfChanged(ref _cursorTop, value); }
         }
+
+        private double _scrollViewportSize = 0;
+        public double ScrollViewportSize
+        {
+            get { return _scrollViewportSize; }
+            private set { this.RaiseAndSetIfChanged(ref _scrollViewportSize, value); }
+        }
+
+        private double _maxScroll = 0;
+        public double MaxScroll
+        {
+            get { return _maxScroll; }
+            private set { this.RaiseAndSetIfChanged(ref _maxScroll, value); }
+        }
+
+        private double _scrollValue = 0;
+        public double ScrollValue
+        {
+            get { return _scrollValue; }
+            set { this.RaiseAndSetIfChanged(ref _scrollValue, value); }
+        }
+
+        private int _visibleLineCount = 0;
+        private int _firstVisibleLine = 0;
+        private int _lastVisibleLine = 0;
 
         private object LINE_LOCK = new object();
 
@@ -65,10 +88,14 @@ namespace XiUWP.ViewModel
             
             _xiService = new XIService();
             _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update));
+            _xiService.ScrollToObservable.Subscribe(async scrollTo => await ScrollToLine(scrollTo));
             _xiService.StyleObservable.Subscribe(update =>
             {
                 Debug.WriteLine(update.ID);
             });
+
+            this.WhenAnyValue(vm => vm.ScrollValue)
+                .Subscribe(_ => UpdateScroll());
 
             Task.Run(_xiService.OpenNewView);
         }
@@ -102,22 +129,21 @@ namespace XiUWP.ViewModel
         {
             CanvasTextLayoutRegion hitRegion;
             int cursorIdx = 0;
-            int cursorLine = 0;
+            int cursorLine = _firstVisibleLine;
 
             var yOffset = 0;
 
-            foreach (var line in _lines)
+            for (int i = _firstVisibleLine; i < _lastVisibleLine; i++)
             {
+                var line = _lines[i];
                 var offsetBounds = new Rect(0, yOffset,
                     _rootCanvas.ActualWidth,
                     line.Bounds.Height);
 
                 if (offsetBounds.Contains(position))
                 {
-                    var posYOffset = position.Y - yOffset;
-
                     // Try and get the position inside the line of text
-                    if (line.TextLayout.HitTest((float)position.X, (float)posYOffset, out hitRegion))
+                    if (line.TextLayout.HitTest((float)position.X, 1, out hitRegion))
                     {
                         cursorIdx = hitRegion.CharacterIndex;
                     }
@@ -136,9 +162,23 @@ namespace XiUWP.ViewModel
             return new Tuple<int, int>(cursorLine, cursorIdx);
         }
 
-        public void TextEntered(string character)
+        public void TextEntered(char character)
         {
-            _xiService.Insert(character);
+            var hasCtrlMod = Window.Current.CoreWindow
+                   .GetKeyState(Windows.System.VirtualKey.Control) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+            if (character == 'z' && hasCtrlMod)
+            {
+                _xiService.GenericEdit("undo");
+            }
+            else if (character == 'y' && hasCtrlMod)
+            {
+                _xiService.GenericEdit("undo");
+            }
+            else
+            {
+                _xiService.Insert(character.ToString());
+            }
         }
 
         public void KeyPressed(VirtualKey key)
@@ -149,7 +189,6 @@ namespace XiUWP.ViewModel
             var hasShiftMod = Window.Current.CoreWindow
                 .GetKeyState(Windows.System.VirtualKey.Shift) == Windows.UI.Core.CoreVirtualKeyStates.Down;
             
-            var character = "";
             switch (key)
             {
                 case VirtualKey.Tab:
@@ -187,32 +226,53 @@ namespace XiUWP.ViewModel
                         _xiService.GenericEdit("move_right");
                     }
                     break;
-                case VirtualKey.Z:
-                    if (hasCtrlMod)
-                    {
-                        _xiService.GenericEdit("undo");
-                    }
-                    else
-                    {
-                        character = hasShiftMod ? key.ToString().ToUpper() : key.ToString().ToLower();
-                        _xiService.Insert(character);
-                    }
-                    break;
-                case VirtualKey.Y:
-                    if (hasCtrlMod)
-                    {
-                        _xiService.GenericEdit("redo");
-                    }
-                    else
-                    {
-                        character = hasShiftMod ? key.ToString().ToUpper() : key.ToString().ToLower();
-                        _xiService.Insert(character);
-                    }
-                    break;
                 default:
                     break;
             }
 
+            _rootCanvas.Invalidate();
+        }
+
+        public void UpdateVisibleLineCount()
+        {
+            if (!_lines.Any())
+                return;
+
+            var lineHeight = _lines[0].Bounds.Height;
+            var lineCount = (int)(_rootCanvas.ActualHeight / lineHeight);
+
+            _visibleLineCount = lineCount;
+
+            UpdateScroll();
+        }
+
+        private async Task ScrollToLine(XiScrollToMsg scrollTo)
+        {
+            if (!_lines.Any())
+                return;
+
+            // Only scroll if the line is not in the visible area
+            if (scrollTo.Line < _firstVisibleLine ||
+                scrollTo.Line > _lastVisibleLine)
+            {
+                var lineHeight = 16;
+                await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
+                {
+                    ScrollValue = scrollTo.Line * lineHeight;
+                });
+            }
+        }
+
+        public void UpdateScroll()
+        {
+            if (!_lines.Any())
+                return;
+
+            var lineHeight = 16;// Math.Max(1, _lines[0].Bounds.Height);
+            _firstVisibleLine = (int)Math.Max(0, ScrollValue / lineHeight);
+            _lastVisibleLine = (int)Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count - 1);
+            
+            _xiService.Scroll(_firstVisibleLine, _lastVisibleLine);
             _rootCanvas.Invalidate();
         }
 
@@ -221,90 +281,93 @@ namespace XiUWP.ViewModel
             var oldIdx = 0;
             var newLines = new List<LineSpan>();
             var cursorLine = -1;
-            
-            foreach (var op in update.Operations)
+
+            lock (LINE_LOCK)
             {
-                switch (op.Operation)
+                foreach (var op in update.Operations)
                 {
-                    case "skip":
-                        // The "skip" op increments old_ix by n.
-                        oldIdx += op.LinesChangeCount;
-                        break;
-                    case "copy":
-                        // The "copy" op appends the n lines [old_ix: old_ix + n] 
-                        // to the new lines array, and increments old_ix by n.
-                        {
-                            for (int i = oldIdx; i < oldIdx + op.LinesChangeCount; i++)
-                            {
-                                newLines.Add(_lines[i]);
-                            }
+                    switch (op.Operation)
+                    {
+                        case "skip":
+                            // The "skip" op increments old_ix by n.
                             oldIdx += op.LinesChangeCount;
                             break;
-                        }
-                    case "update":
-                        // The "update" op updates the cursor and / or style of n existing lines.
-                        // As in "ins", n must equal lines.length.It also increments old_ix by n.
-                        oldIdx += op.LinesChangeCount;
-                        break;
-                    case "ins":
-                        {
-                            // The "ins" op appends new lines, specified by the "lines"
-                            // parameter, specified in more detail below. For this op, 
-                            // n must equal lines.length(alternative: make n optional in this case). 
-                            // It does not update old_ix.
-                            foreach (var line in op.Lines)
+                        case "copy":
+                            // The "copy" op appends the n lines [old_ix: old_ix + n] 
+                            // to the new lines array, and increments old_ix by n.
                             {
-                                newLines.Add(new LineSpan(
-                                    line.Text.Trim(),
-                                    line.Style));
-
-                                if (line.Cursor != null)
+                                for (int i = oldIdx; i < oldIdx + op.LinesChangeCount; i++)
                                 {
-                                    cursorLine = newLines.Count - 1;
-                                    _cursorIndex = line.Cursor[0];
-                                    _currentLine = line.Text;
-                                    _cursorLineIndex = cursorLine;
+                                    newLines.Add(_lines[i]);
+                                }
+                                oldIdx += op.LinesChangeCount;
+                                break;
+                            }
+                        case "update":
+                            // The "update" op updates the cursor and / or style of n existing lines.
+                            // As in "ins", n must equal lines.length.It also increments old_ix by n.
+                            oldIdx += op.LinesChangeCount;
+                            break;
+                        case "ins":
+                            {
+                                // The "ins" op appends new lines, specified by the "lines"
+                                // parameter, specified in more detail below. For this op, 
+                                // n must equal lines.length(alternative: make n optional in this case). 
+                                // It does not update old_ix.
+                                foreach (var line in op.Lines)
+                                {
+                                    newLines.Add(new LineSpan(
+                                        line.Text.Trim(),
+                                        line.Style));
+
+                                    if (line.Cursor != null)
+                                    {
+                                        cursorLine = newLines.Count - 1;
+                                        _cursorIndex = line.Cursor[0];
+                                        _currentLine = line.Text;
+                                        _cursorLineIndex = cursorLine;
+                                    }
                                 }
                             }
-                        }
-                        break;
-                    case "invalidate":
-                        // The "invalidate" op appends n invalid lines to the new lines array.
-                        break;
-                    default:
-                        break;
+                            break;
+                        case "invalidate":
+                            // The "invalidate" op appends n invalid lines to the new lines array.
+                            for (int i = 0; i < op.LinesChangeCount; i++)
+                            {
+                                newLines.Add(new LineSpan("", new List<int>()));
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
 
-            await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
-            {
-                var yOffset = 0;
-                for (int i = 0; i < newLines.Count; i++)
-                {
-                    newLines[i].Layout(_rootCanvas, _textFormat, 
-                        (int)_rootCanvas.ActualWidth, 
-                        (int)_rootCanvas.ActualHeight, 
-                        yOffset);
+            _lines = newLines;
 
-                    if (i == cursorLine)
+            if (newLines.Any())
+            {
+                await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
+                {
+                    var yOffset = 0;
+                    for (int i = 0; i < newLines.Count; i++)
                     {
-                        var pos = newLines[cursorLine].GetCaretPosition(_cursorIndex);
-                        CursorLeft = pos.X;
-                        CursorTop = pos.Y + yOffset;
+                        newLines[i].Layout(_rootCanvas, _textFormat,
+                            (int)_rootCanvas.ActualWidth,
+                            (int)_rootCanvas.ActualHeight);
+
+                        yOffset += (int)(newLines[i].Bounds.Height);
                     }
 
-                    yOffset += (int)(newLines[i].Bounds.Height);
-                }
+                    MaxScroll = newLines.Count * newLines[0].Bounds.Height;
+                    if (ScrollViewportSize != _rootCanvas.ActualHeight)
+                    {
+                        ScrollViewportSize = _rootCanvas.ActualHeight;
+                        UpdateVisibleLineCount();
+                    }
+                }).ConfigureAwait(false);
+            }
 
-                if (_isScrollDirty)
-                {
-                    var lineCount = (int)(_rootCanvas.ActualHeight / newLines[0].Bounds.Height);
-                    _xiService.Scroll(0, lineCount);
-                    _isScrollDirty = false;
-                }
-            });
-
-            _lines = newLines;
             _rootCanvas.Invalidate();
         }
 
@@ -314,18 +377,34 @@ namespace XiUWP.ViewModel
             
             lock (LINE_LOCK)
             {
-                foreach (var line in _lines)
+                for (int i = _firstVisibleLine; i < _lastVisibleLine; i++)
                 {
-                    if (line.TextLayout == null)
+                    if (_lines[i].TextLayout == null)
                         continue;
 
-                    args.DrawingSession.DrawTextLayout(line.TextLayout,
+                    args.DrawingSession.DrawTextLayout(_lines[i].TextLayout,
                             new Vector2(0, yOffset), Windows.UI.Colors.Black);
 
-                    if (line.HasSelectBounds)
-                        args.DrawingSession.FillRectangle(line.SelectBounds, _selectColor);
+                    // Draw select bounds
+                    if (_lines[i].HasSelectBounds)
+                    {
+                        args.DrawingSession.FillRectangle(
+                            (float)_lines[i].SelectBounds.X,
+                            yOffset,
+                            (float)_lines[i].SelectBounds.Width,
+                            (float)_lines[i].SelectBounds.Height,
+                            _selectColor);
+                    }
 
-                    yOffset += (int)(line.Bounds.Height);
+                    // Update cursor position
+                    if (i == _cursorLineIndex)
+                    {
+                        var pos = _lines[i].GetCaretPosition(_cursorIndex);
+                        CursorLeft = pos.X;
+                        CursorTop = pos.Y + yOffset;
+                    }
+
+                    yOffset += (int)(_lines[i].Bounds.Height);
                 }
             }
         }

@@ -36,7 +36,7 @@ namespace XiBackend
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("*****************************");
-            Console.WriteLine("**** Xi Process Broker ****");
+            Console.WriteLine("***** Xi Process Broker *****");
             Console.WriteLine("*****************************");
             Console.ReadLine();
         }
@@ -137,7 +137,7 @@ namespace XiBackend
                     editMsg.Add("params", insertParams);
                 }
 
-                if (method == "click" || method == "scroll" || method == "drag")
+                if (method == "click" || method == "scroll" || method == "drag" || method == "request")
                 {
                     var intArrayParams = args.Request.Message["params"] as int[];
                     editMsg.Add("params", intArrayParams);

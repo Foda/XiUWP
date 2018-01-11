@@ -51,8 +51,21 @@ namespace XiUWP.View
             // Setup input events
             RootCanvas.PointerPressed += RootCanvas_PointerPressed;
             RootCanvas.PointerReleased += RootCanvas_PointerReleased;
+
             Window.Current.CoreWindow.KeyDown += CoreWindow_KeyDown;
             Window.Current.CoreWindow.CharacterReceived += CoreWindow_CharacterReceived;
+            Window.Current.CoreWindow.ResizeCompleted += CoreWindow_ResizeCompleted;
+            Window.Current.CoreWindow.PointerWheelChanged += CoreWindow_PointerWheelChanged;
+        }
+
+        private void CoreWindow_PointerWheelChanged(Windows.UI.Core.CoreWindow sender, Windows.UI.Core.PointerEventArgs args)
+        {
+            MainVertScrollbar.Value += (args.CurrentPoint.Properties.MouseWheelDelta * -0.25);
+        }
+
+        private void CoreWindow_ResizeCompleted(Windows.UI.Core.CoreWindow sender, object args)
+        {
+            _viewModel.UpdateVisibleLineCount();
         }
 
         private void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
@@ -66,7 +79,7 @@ namespace XiUWP.View
             else
             {
                 args.Handled = true;
-                _viewModel.TextEntered(c.ToString());
+                _viewModel.TextEntered(c);
             }
         }
 

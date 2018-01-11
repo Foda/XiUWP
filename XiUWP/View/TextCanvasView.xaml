@@ -10,12 +10,12 @@
     d:DesignHeight="300"
     d:DesignWidth="400">
 
-    <Grid Background="#FAFBFC" Padding="12">
-        <canvas:CanvasControl x:Name="RootCanvas" 
+    <Grid Background="#FAFBFC">
+        <canvas:CanvasControl x:Name="RootCanvas" Margin="16"
                               PointerEntered="RootCanvas_PointerEntered"
                               PointerExited="RootCanvas_PointerExited"/>
 
-        <Canvas IsHitTestVisible="False">
+        <Canvas IsHitTestVisible="False" Margin="16">
             <Rectangle Width="2" Height="16" x:Name="CanvasCursor" Fill="Black"
                        Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
                 <Rectangle.Triggers>
@@ -33,5 +33,10 @@
                 </Rectangle.Triggers>
             </Rectangle>
         </Canvas>
+        
+        <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
+                   VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
+                   Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
+                   ViewportSize="{Binding ScrollViewportSize}"/>
     </Grid>
 </UserControl>
