@@ -21,6 +21,7 @@ using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
+using XiUWP.View;
 using XiUWP.ViewModel;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
@@ -41,22 +42,21 @@ namespace XiUWP
         private async void MainPage_Loaded(object sender, RoutedEventArgs e)
         {
             await Windows.ApplicationModel.FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
-            ControlToolbar.DataContext = RootTextView.DataContext;
         }
-
-        private async void Button_Click(object sender, RoutedEventArgs e)
+        
+        private async void OpenDocument_Click(object sender, RoutedEventArgs e)
         {
-            //await (RootTextView.DataContext as TextViewModel).Save();
-        }
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".txt");
+            picker.FileTypeFilter.Add(".md");
 
-        private async void BoldSelectionButton_Click(object sender, RoutedEventArgs e)
-        {
-            await (RootTextView.DataContext as TextViewModel).BoldSelection();
-        }
-
-        private async void HeaderLineOneButton_Click(object sender, RoutedEventArgs e)
-        {
-            await (RootTextView.DataContext as TextViewModel).HeaderCurrentLine(1);
+            Windows.Storage.StorageFile file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                await RootTextView.OpenNewDocument(file.Path);
+                RootTextView.Focus(FocusState.Keyboard);
+            }
         }
     }
 }

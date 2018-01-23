@@ -12,6 +12,7 @@ namespace XiBackend
 {
     class Program
     {
+        private static string ConfigDir = @"";
         static AppServiceConnection connection = null;
         static CoreConnection _coreConnection;
 
@@ -78,7 +79,14 @@ namespace XiBackend
         private static async void Connection_RequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
         {
             var operation = args.Request.Message["operation"].ToString();
-            if (operation == "new_view")
+
+            if (operation == "client_started")
+            {
+                var configPath = args.Request.Message["config_dir"].ToString();
+                var req = new Dictionary<string, dynamic> { { "config_dir", configPath } };
+                _coreConnection.SendRpcAsync("client_started", req);
+            }
+            else if (operation == "new_view")
             {
                 var deferral = args.GetDeferral();
                 string path = args.Request.Message["file_path"].ToString();
@@ -110,7 +118,7 @@ namespace XiBackend
                         "view_id", id
                     }
                 };
-                _coreConnection.SendRpc(operation, req);
+                _coreConnection.SendRpcAsync(operation, req);
             }
             else if (operation == "edit")
             {

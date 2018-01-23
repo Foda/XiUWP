@@ -22,13 +22,11 @@ namespace XiUWP.View
     public sealed partial class TextCanvasView : UserControl
     {
         private TextViewModel _viewModel;
-        private CoreTextEditContext _editContext;
         private HashSet<char> _charsToSkip;
 
         public TextCanvasView()
         {
             this.InitializeComponent();
-            this.Loaded += TextCanvasView_Loaded;
 
             _charsToSkip = new HashSet<char>()
             {
@@ -36,26 +34,24 @@ namespace XiUWP.View
                 '\n', // Newline
                 '\r', // Return
             };
-        }
-
-        private async void TextCanvasView_Loaded(object sender, RoutedEventArgs e)
-        {
-            while (App.Connection == null)
-            {
-                await Task.Delay(500);
-            }
 
             _viewModel = new TextViewModel(this.RootCanvas);
             this.DataContext = _viewModel;
 
             // Setup input events
             RootCanvas.PointerPressed += RootCanvas_PointerPressed;
+            RootCanvas.PointerMoved += RootCanvas_PointerMoved;
             RootCanvas.PointerReleased += RootCanvas_PointerReleased;
 
             Window.Current.CoreWindow.KeyDown += CoreWindow_KeyDown;
             Window.Current.CoreWindow.CharacterReceived += CoreWindow_CharacterReceived;
             Window.Current.CoreWindow.ResizeCompleted += CoreWindow_ResizeCompleted;
             Window.Current.CoreWindow.PointerWheelChanged += CoreWindow_PointerWheelChanged;
+        }
+
+        public async Task OpenNewDocument(string file)
+        {
+            await _viewModel.OpenFile(file);
         }
 
         private void CoreWindow_PointerWheelChanged(Windows.UI.Core.CoreWindow sender, Windows.UI.Core.PointerEventArgs args)
@@ -65,12 +61,18 @@ namespace XiUWP.View
 
         private void CoreWindow_ResizeCompleted(Windows.UI.Core.CoreWindow sender, object args)
         {
+            if (_viewModel == null)
+                return;
+
             _viewModel.UpdateVisibleLineCount();
         }
 
         private void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
             Windows.UI.Core.CharacterReceivedEventArgs args)
         {
+            if (_viewModel == null)
+                return;
+
             var c = Convert.ToChar(args.KeyCode);
             if (_charsToSkip.Contains(c))
             {
@@ -83,21 +85,38 @@ namespace XiUWP.View
             }
         }
 
-        private void CoreWindow_KeyDown(Windows.UI.Core.CoreWindow sender, 
+        private async void CoreWindow_KeyDown(Windows.UI.Core.CoreWindow sender, 
             Windows.UI.Core.KeyEventArgs args)
         {
-            _viewModel.KeyPressed(args.VirtualKey);
+            if (_viewModel == null)
+                return;
+
+            await _viewModel.KeyPressed(args.VirtualKey);
         }
 
         private void RootCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            if (_viewModel == null)
+                return;
+
             e.Handled = true;
             RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerPressed(e.GetCurrentPoint(RootCanvas).Position);
         }
 
+        private async void RootCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_viewModel == null)
+                return;
+
+            await _viewModel.PointerMoved(e.GetCurrentPoint(RootCanvas).Position);
+        }
+
         private void RootCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            if (_viewModel == null)
+                return;
+
             e.Handled = true;
             RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerReleased(e.GetCurrentPoint(RootCanvas).Position);

@@ -7,15 +7,16 @@ using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Foundation.Collections;
+using Windows.Storage;
 
 namespace XiUWP.Service
 {
     /// <summary>
-    /// TODO:
-    /// scroll (0,18)
     /// </summary>
     public class XIService
     {
+        private string _currentFile;
+
         public string ViewID { get; private set; }
 
         private readonly Subject<XiUpdateOperation> _xiUpdateSubject =
@@ -42,19 +43,54 @@ namespace XiUWP.Service
             get { return _xiScrollSubject.AsObservable(); }
         }
 
-        public XIService()
+        public async Task OpenNewView(string file)
         {
-            App.Connection.RequestReceived += Connection_RequestReceived;
-        }
+            await StartClient();
 
-        public async Task OpenNewView()
-        {
+            _currentFile = file;
+
             var valueSet = new ValueSet();
             valueSet.Add("operation", "new_view");
-            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
+            valueSet.Add("file_path", _currentFile);
 
             var reply = await App.Connection.SendMessageAsync(valueSet);
             ViewID = reply.Message["view_id"].ToString();
+        }
+
+        private async Task StartClient()
+        {
+            App.Connection.RequestReceived += Connection_RequestReceived;
+            await WriteDefaultSettings();
+
+            var valueSet = new ValueSet();
+            valueSet.Add("operation", "client_started");
+            valueSet.Add("config_dir", Windows.Storage.ApplicationData.Current.LocalFolder.Path + "\\");
+
+            await App.Connection.SendMessageAsync(valueSet);
+        }
+
+        private async Task WriteDefaultSettings()
+        {
+            var defaultSettingsFileName = "preferences.xiconfig";
+            var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+            Console.WriteLine(localFolder.Path);
+
+            var defaultSettings = new StringBuilder();
+            defaultSettings.AppendLine("tab_size = 4");
+            defaultSettings.AppendLine("translate_tabs_to_spaces = true");
+            defaultSettings.AppendLine("use_tab_stops = true");
+            defaultSettings.AppendLine("auto_indent = false");
+            defaultSettings.AppendLine("scroll_past_end = false");
+            defaultSettings.AppendLine("wrap_width = 0");
+
+            var settingsFile = await localFolder.CreateFileAsync(defaultSettingsFileName, CreationCollisionOption.ReplaceExisting);
+            await FileIO.WriteTextAsync(settingsFile, defaultSettings.ToString());
+
+            // Create plugins folder
+            if (!System.IO.Directory.Exists(localFolder.Path + "\\plugins"))
+            {
+                await localFolder.CreateFolderAsync("plugins");
+            }
         }
 
         public async Task SaveView()
@@ -62,7 +98,7 @@ namespace XiUWP.Service
             var valueSet = new ValueSet();
             valueSet.Add("operation", "save");
             valueSet.Add("view_id", ViewID);
-            valueSet.Add("file_path", @"C:\Projects\Test\document.txt");
+            valueSet.Add("file_path", _currentFile);
 
             await App.Connection.SendMessageAsync(valueSet);
         }

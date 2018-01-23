@@ -99,12 +99,18 @@
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Model\LineSpan.cs" />
+    <Compile Include="Model\LogicalDirection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Service\XiScrollToMsg.cs" />
     <Compile Include="Service\XIService.cs" />
     <Compile Include="Service\XiStyleMsg.cs" />
     <Compile Include="Service\XiUpdateMsg.cs" />
+    <Compile Include="Util\LineUtils.cs" />
+    <Compile Include="ViewModel\MarkdownPreviewViewModel.cs" />
     <Compile Include="ViewModel\TextViewModel.cs" />
+    <Compile Include="View\MarkdownPreviewView.xaml.cs">
+      <DependentUpon>MarkdownPreviewView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="View\TextCanvasView.xaml.cs">
       <DependentUpon>TextCanvasView.xaml</DependentUpon>
     </Compile>
@@ -134,6 +140,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="View\MarkdownPreviewView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="View\TextCanvasView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -162,7 +172,6 @@
       <Version>1.21.0</Version>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <SDKReference Include="WindowsDesktop, Version=10.0.16299.0">
       <Name>Windows Desktop Extensions for the UWP</Name>

@@ -15,8 +15,10 @@
                    DisplayMode="CompactInline">
             <SplitView.Pane>
                 <Grid>
-                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24">
-                        <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent">
+                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24"
+                                DataContext="{Binding ElementName=RootTextView.DataContext}">
+                        <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent" x:Name="OpenDocument"
+                                Click="OpenDocument_Click">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="OpenFile"/>
                                 <TextBlock Text="New File" Margin="24,0,0,0" VerticalAlignment="Center"/>
@@ -24,7 +26,8 @@
                         </Button>
 
                         <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                                Margin="0,16,0,0" Click="Button_Click">
+                                Margin="0,16,0,0" x:Name="SaveSidebar" 
+                                Command="{Binding SaveCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="Save"/>
                                 <TextBlock Text="Save" Margin="24,0,0,0" VerticalAlignment="Center"/>
@@ -42,18 +45,17 @@
                                          x:Name="RootTextView"/>
                 </uwp:DropShadowPanel>
                 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,20,0,0"
-                            x:Name="ControlToolbar">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,20,0,0">
                     <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
                             FontFamily="Segoe MDL2 Assets" Content="&#xE8DD;" Height="40"
-                            x:Name="BoldSelectionButton" Click="BoldSelectionButton_Click"/>
+                            x:Name="BoldSelectionButton"/>
 
                     <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
                             FontFamily="Segoe MDL2 Assets" Content="&#xE8DB;" Height="40"
                             x:Name="ItalicSelectionButton"/>
 
                     <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            Height="40" x:Name="HeaderLineOneButton" Click="HeaderLineOneButton_Click">
+                            Height="40" x:Name="HeaderLineOneButton">
                         <TextBlock OpticalMarginAlignment="TrimSideBearings" CharacterSpacing="-100">
                             <Run Text="H" FontWeight="Bold"/>
                             <Run Text="1" FontSize="10"/>

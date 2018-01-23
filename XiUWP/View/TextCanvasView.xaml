@@ -6,37 +6,56 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+    xmlns:uwpControls="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:conv="using:Microsoft.Toolkit.Uwp.UI.Converters"
     mc:Ignorable="d"
     d:DesignHeight="300"
     d:DesignWidth="400">
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </UserControl.Resources>
 
     <Grid Background="#FAFBFC">
-        <canvas:CanvasControl x:Name="RootCanvas" Margin="16"
-                              PointerEntered="RootCanvas_PointerEntered"
-                              PointerExited="RootCanvas_PointerExited"/>
-
-        <Canvas IsHitTestVisible="False" Margin="16">
-            <Rectangle Width="2" Height="16" x:Name="CanvasCursor" Fill="Black"
-                       Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
-                <Rectangle.Triggers>
-                    <EventTrigger RoutedEvent="Rectangle.Loaded">
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation 
-                                    Storyboard.TargetName="CanvasCursor"
-                                    Storyboard.TargetProperty="(Rectangle.Opacity)" 
-                                    From="1" To="0" Duration="0:0:0.2" AutoReverse="True"  
-                                    RepeatBehavior="Forever"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </EventTrigger>
-                </Rectangle.Triggers>
-            </Rectangle>
-        </Canvas>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
         
-        <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
-                   VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
-                   Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
-                   ViewportSize="{Binding ScrollViewportSize}"/>
+        <Grid>
+            <canvas:CanvasControl x:Name="RootCanvas" Margin="16"
+                                  PointerEntered="RootCanvas_PointerEntered"
+                                  PointerExited="RootCanvas_PointerExited"/>
+
+            <Canvas IsHitTestVisible="False" Margin="16">
+                <Rectangle Width="1" Height="16" x:Name="CanvasCursor" Fill="Black"
+                           Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
+                    <Rectangle.Triggers>
+                        <EventTrigger RoutedEvent="Rectangle.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimationUsingKeyFrames 
+                                        Storyboard.TargetName="CanvasCursor"
+                                        Storyboard.TargetProperty="(Rectangle.Opacity)" 
+                                        Duration="0:0:0.5" AutoReverse="True"  
+                                        RepeatBehavior="Forever">
+                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
+                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0.25" Value="1"/>
+                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0.5" Value="1"/>
+                                    </DoubleAnimationUsingKeyFrames>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Rectangle.Triggers>
+                </Rectangle>
+            </Canvas>
+
+            <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
+                       VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
+                       Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
+                       ViewportSize="{Binding ScrollViewportSize}"/>
+        </Grid>
+
+        <local:MarkdownPreviewView DataContext="{Binding MarkdownPreviewViewModel}"
+                                   Grid.Column="1"/>
     </Grid>
 </UserControl>
