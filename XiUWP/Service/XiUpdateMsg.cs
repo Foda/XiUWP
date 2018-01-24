@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace XiUWP.Service
 {
-    public class XiUpdate
+    public class XiUpdate : IXiBaseMsg
     {
         [JsonProperty("update")]
         public XiUpdateOperation Update { get; set; }

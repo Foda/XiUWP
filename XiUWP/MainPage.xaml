@@ -14,22 +14,13 @@
                    IsPaneOpen="False" OpenPaneLength="256" CompactPaneLength="48"
                    DisplayMode="CompactInline">
             <SplitView.Pane>
-                <Grid>
+                <Grid AllowFocusOnInteraction="False">
                     <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24">
                         <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent" x:Name="OpenDocument"
-                                Click="OpenDocument_Click">
+                                Click="OpenDocument_Click" AllowFocusOnInteraction="False">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="OpenFile"/>
                                 <TextBlock Text="New File" Margin="24,0,0,0" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                                Margin="0,16,0,0" x:Name="SaveSidebar" 
-                                Command="{Binding ElementName=RootTextView, Path=DataContext.SaveCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <SymbolIcon Symbol="Save"/>
-                                <TextBlock Text="Save" Margin="24,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -39,37 +30,10 @@
             <Grid>
                 <uwp:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                      OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
-                                     ShadowOpacity="0.25" Margin="0,60,0,0">
+                                     ShadowOpacity="0.25" Margin="0,42,0,0">
                     <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                          x:Name="RootTextView"/>
                 </uwp:DropShadowPanel>
-                
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,20,0,0">
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            FontFamily="Segoe MDL2 Assets" Content="&#xE8DD;" Height="40"
-                            x:Name="BoldSelectionButton"/>
-
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            FontFamily="Segoe MDL2 Assets" Content="&#xE8DB;" Height="40"
-                            x:Name="ItalicSelectionButton"/>
-
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            Height="40" x:Name="HeaderLineOneButton">
-                        <TextBlock OpticalMarginAlignment="TrimSideBearings" CharacterSpacing="-100">
-                            <Run Text="H" FontWeight="Bold"/>
-                            <Run Text="1" FontSize="10"/>
-                        </TextBlock>
-                    </Button>
-                    
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent" Margin="40,0,0,0"
-                            FontFamily="Segoe MDL2 Assets" Content="&#xE8FD;" Height="40"/>
-                    
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            FontFamily="Segoe MDL2 Assets" Content="&#xE71B;" Height="40"/>
-
-                    <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
-                            FontFamily="Segoe MDL2 Assets" Content="&#xEB9F;" Height="40"/>
-                </StackPanel>
             </Grid>
         </SplitView>
     </Grid>

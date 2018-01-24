@@ -8,6 +8,8 @@
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     xmlns:uwpControls="using:Microsoft.Toolkit.Uwp.UI.Controls"
     xmlns:conv="using:Microsoft.Toolkit.Uwp.UI.Converters"
+    xmlns:uwp="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:extensions="using:Microsoft.Toolkit.Uwp.UI.Extensions"
     mc:Ignorable="d"
     d:DesignHeight="300"
     d:DesignWidth="400">
@@ -19,29 +21,31 @@
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="50"/>
-                <ColumnDefinition Width="1"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,16,8,16"
+            <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,8,8,0"
                                   HorizontalAlignment="Stretch"
                                   Grid.Column="0"/>
 
-            <Rectangle Grid.Column="1" Width="1" VerticalAlignment="Stretch"
-                       Fill="Black" Opacity="0.1" Margin="0,16,0,16"/>
+            <Image HorizontalAlignment="Right" Width="8" VerticalAlignment="Stretch"
+                   Stretch="Fill" Source="ms-appx:///Assets/shadow_8x1.png"
+                   Grid.Column="0" Opacity="0.75"/>
 
-            <canvas:CanvasControl x:Name="RootCanvas" Margin="4,16,16,16"
-                                  PointerEntered="RootCanvas_PointerEntered"
-                                  PointerExited="RootCanvas_PointerExited"
-                                  Grid.Column="2"/>
+            <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0"
+                       Fill="#D2D2D2" HorizontalAlignment="Right" />
 
-            <Canvas IsHitTestVisible="False" Margin="4,16,16,16" Grid.Column="1">
-                <Rectangle Width="1" Height="16" x:Name="CanvasCursor" Fill="Black"
-                           Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
+            <canvas:CanvasControl x:Name="RootCanvas" Margin="4,8,16,0"
+                                  Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
+
+            <Canvas IsHitTestVisible="False" Margin="4,8,16,0" Grid.Column="1">
+                <Rectangle Width="1" Height="14" x:Name="CanvasCursor" Fill="Black"
+                           Canvas.Left="{Binding CursorAnchor.CursorLeft}" 
+                           Canvas.Top="{Binding CursorAnchor.CursorTop}">
                     <Rectangle.Triggers>
                         <EventTrigger RoutedEvent="Rectangle.Loaded">
                             <BeginStoryboard>
-                                <Storyboard>
+                                <Storyboard x:Name="BlinkAnim">
                                     <DoubleAnimationUsingKeyFrames 
                                         Storyboard.TargetName="CanvasCursor"
                                         Storyboard.TargetProperty="(Rectangle.Opacity)" 
@@ -62,7 +66,66 @@
                        VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
                        Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
                        ViewportSize="{Binding ScrollViewportSize}"
-                       Grid.Column="2"/>
+                       Grid.Column="1"/>
         </Grid>
+
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Width="150" x:Name="OpenHint">
+            <Grid Width="64" Height="64" Opacity="0.2" >
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Text="&#xE115;" FontSize="64"
+                           RequestedTheme="Light" FontFamily="Segoe MDL2 Assets"
+                           RenderTransformOrigin="0.5, 0.5">
+                    <TextBlock.RenderTransform>
+                        <RotateTransform x:Name="OuterGearRotation"/>
+                    </TextBlock.RenderTransform>
+                    <TextBlock.Triggers>
+                        <EventTrigger RoutedEvent="TextBlock.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimationUsingKeyFrames 
+                                        Storyboard.TargetName="OuterGearRotation"
+                                        Storyboard.TargetProperty="Angle" 
+                                        Duration="0:0:6" AutoReverse="False"  
+                                        RepeatBehavior="Forever">
+                                        <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
+                                        <LinearDoubleKeyFrame KeyTime="0:0:6" Value="360"/>
+                                    </DoubleAnimationUsingKeyFrames>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </TextBlock.Triggers>
+                </TextBlock>
+
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Text="&#xF0B4;" FontSize="38" Padding="2,2,0,0"
+                           RequestedTheme="Light" FontFamily="Segoe MDL2 Assets"
+                           RenderTransformOrigin="0.5, 0.5">
+                    <TextBlock.RenderTransform>
+                        <RotateTransform x:Name="InnerGearRotation"/>
+                    </TextBlock.RenderTransform>
+                    <TextBlock.Triggers>
+                        <EventTrigger RoutedEvent="TextBlock.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimationUsingKeyFrames 
+                                        Storyboard.TargetName="InnerGearRotation"
+                                        Storyboard.TargetProperty="Angle" 
+                                        Duration="0:0:2" AutoReverse="False"  
+                                        RepeatBehavior="Forever">
+                                        <LinearDoubleKeyFrame KeyTime="0:0:0" Value="360"/>
+                                        <LinearDoubleKeyFrame KeyTime="0:0:2" Value="0"/>
+                                    </DoubleAnimationUsingKeyFrames>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </TextBlock.Triggers>
+                </TextBlock>
+            </Grid>
+
+            <TextBlock Text="Use the sidebar to open a document"
+                       TextWrapping="Wrap" TextAlignment="Center" RequestedTheme="Light"
+                       Opacity="0.25" FontSize="12"/>
+        </StackPanel>
     </Grid>
 </UserControl>

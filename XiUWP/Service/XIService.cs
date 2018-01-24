@@ -19,8 +19,8 @@ namespace XiUWP.Service
 
         public string ViewID { get; private set; }
 
-        private readonly Subject<XiUpdateOperation> _xiUpdateSubject =
-            new Subject<XiUpdateOperation>();
+        private readonly Subject<XiUpdate> _xiUpdateSubject =
+            new Subject<XiUpdate>();
 
         private readonly Subject<XiStyleMsg> _xiSetStyleSubject =
             new Subject<XiStyleMsg>();
@@ -28,7 +28,7 @@ namespace XiUWP.Service
         private readonly Subject<XiScrollToMsg> _xiScrollSubject =
             new Subject<XiScrollToMsg>();
 
-        public IObservable<XiUpdateOperation> UpdateObservable
+        public IObservable<XiUpdate> UpdateObservable
         {
             get { return _xiUpdateSubject.AsObservable(); }
         }
@@ -93,7 +93,7 @@ namespace XiUWP.Service
             }
         }
 
-        public async Task SaveView()
+        public async Task Save()
         {
             var valueSet = new ValueSet();
             valueSet.Add("operation", "save");
@@ -186,22 +186,20 @@ namespace XiUWP.Service
             var message = args.Request.Message;
             var method = message["method"].ToString();
 
+            // View specific
             if (method == "update")
             {
-                try
-                {
-                    var json = message["parameters"].ToString();
-                    var update = JsonConvert.DeserializeObject<XiUpdate>(json);
-
-                    // Only actually care about the meat of the update
-                    _xiUpdateSubject.OnNext(update.Update);
-                }
-                catch (JsonException ex)
-                {
-                    Console.WriteLine(ex);
-                }
+                var json = message["parameters"].ToString();
+                DeserializeMessage<XiUpdate>(json, _xiUpdateSubject);
             }
 
+            if (method == "scroll_to")
+            {
+                var json = message["parameters"].ToString();
+                DeserializeMessage<XiScrollToMsg>(json, _xiScrollSubject);
+            }
+
+            // Non-view specific
             if (method == "set_style")
             {
                 try
@@ -216,20 +214,21 @@ namespace XiUWP.Service
                     Console.WriteLine(ex);
                 }
             }
+        }
 
-            if (method == "scroll_to")
+        private void DeserializeMessage<T>(string json, Subject<T> subject) where T : IXiBaseMsg
+        {
+            try
             {
-                try
+                var update = JsonConvert.DeserializeObject<T>(json);
+                if (update.ViewID == this.ViewID)
                 {
-                    var json = message["parameters"].ToString();
-                    var update = JsonConvert.DeserializeObject<XiScrollToMsg>(json);
-
-                    _xiScrollSubject.OnNext(update);
+                    subject.OnNext(update);
                 }
-                catch (JsonException ex)
-                {
-                    Console.WriteLine(ex);
-                }
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine(ex);
             }
         }
     }

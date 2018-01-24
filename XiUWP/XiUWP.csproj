@@ -98,9 +98,12 @@
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Model\CursorAnchor.cs" />
+    <Compile Include="Model\EditAction.cs" />
     <Compile Include="Model\LineSpan.cs" />
     <Compile Include="Model\LogicalDirection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Service\IXiBaseMsg.cs" />
     <Compile Include="Service\XiScrollToMsg.cs" />
     <Compile Include="Service\XIService.cs" />
     <Compile Include="Service\XiStyleMsg.cs" />
@@ -118,6 +121,7 @@
     <None Include="XiUWP_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Assets\shadow_8x1.png" />
     <Content Include="Properties\Default.rd.xml" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\SplashScreen.scale-200.png" />

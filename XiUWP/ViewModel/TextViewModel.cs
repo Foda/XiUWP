@@ -18,6 +18,7 @@ using System.Diagnostics;
 using XiUWP.Model;
 using XiUWP.Util;
 using System.Reactive;
+using Windows.UI.Core;
 
 namespace XiUWP.ViewModel
 {
@@ -31,23 +32,17 @@ namespace XiUWP.ViewModel
         private CanvasTextFormat _textFormat;
         private List<LineSpan> _lines = new List<LineSpan>();
         private string _currentLine = "";
-        private int _cursorIndex = 0;
-        private int _cursorLineIndex = 0;
 
-        private Windows.UI.Color _selectColor;
+        private Windows.UI.Color _selectColor = Windows.UI.Color.FromArgb(128, 0, 120, 215);
 
-        private float _cursorLeft = 0;
-        public float CursorLeft
+        private int _visibleLineCount = 0;
+        private int _firstVisibleLine = 0;
+        private int _lastVisibleLine = 0;
+
+        private CursorAnchor _cursorAnchor = new CursorAnchor();
+        public CursorAnchor CursorAnchor
         {
-            get { return _cursorLeft; }
-            private set { this.RaiseAndSetIfChanged(ref _cursorLeft, value); }
-        }
-
-        private float _cursorTop = 0;
-        public float CursorTop
-        {
-            get { return _cursorTop; }
-            private set { this.RaiseAndSetIfChanged(ref _cursorTop, value); }
+            get { return _cursorAnchor; }
         }
 
         private double _scrollViewportSize = 0;
@@ -71,23 +66,26 @@ namespace XiUWP.ViewModel
             set { this.RaiseAndSetIfChanged(ref _scrollValue, value); }
         }
 
-        private bool _showMarkdownPreview;
-        public bool ShowMarkdownPreview
+        private bool _isDraggingMouse = false;
+        public bool IsDraggingMouse
         {
-            get { return _showMarkdownPreview; }
-            private set { this.RaiseAndSetIfChanged(ref _showMarkdownPreview, value); }
+            get { return _isDraggingMouse; }
         }
 
-        public bool IsDraggingMouse { get { return _isDraggingMouse; } }
-
-        public ReactiveCommand SaveCommand { get; }
-
-        private int _visibleLineCount = 0;
-        private int _firstVisibleLine = 0;
-        private int _lastVisibleLine = 0;
-        private bool _isDraggingMouse = false;
-
-        private StringBuilder _cachedText = new StringBuilder();
+        private List<EditAction> _genericEditActions = new List<EditAction>()
+        {
+            // Modifier, Key, Action
+            new EditAction(VirtualKey.None, VirtualKey.Up, "move_up"),
+            new EditAction(VirtualKey.None, VirtualKey.Down, "move_down"),
+            new EditAction(VirtualKey.None, VirtualKey.Tab, "insert_tab"),
+            new EditAction(VirtualKey.None, VirtualKey.Enter, "insert_newline"),
+            new EditAction(VirtualKey.None, VirtualKey.Back, "delete_backward"),
+            new EditAction(VirtualKey.Control, VirtualKey.Back, "delete_word_backward"),
+            new EditAction(VirtualKey.Control, VirtualKey.Delete, "delete_word_backward"),
+            new EditAction(VirtualKey.Control, VirtualKey.Z, "undo"),
+            new EditAction(VirtualKey.Control, VirtualKey.Y, "redo"),
+            new EditAction(VirtualKey.Control, VirtualKey.A, "select_all"),
+        };
 
         public TextViewModel(CanvasControl rootCanvas, CanvasControl gutterCanvas)
         {
@@ -100,19 +98,15 @@ namespace XiUWP.ViewModel
             _textFormat = new CanvasTextFormat();
             _textFormat.FontFamily = "Consolas";
             _textFormat.FontSize = 12;
-            _textFormat.WordWrapping = CanvasWordWrapping.NoWrap;
+            _textFormat.WordWrapping = CanvasWordWrapping.NoWrap; //Xi handles this for us
 
-            _selectColor = Windows.UI.Color.FromArgb(128, 0, 120, 215);
-            
             _xiService = new XIService();
-            _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update));
+            _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update.Update));
             _xiService.ScrollToObservable.Subscribe(async scrollTo => await ScrollToLine(scrollTo));
             _xiService.StyleObservable.Subscribe(update =>
             {
                 Debug.WriteLine(update.ID);
             });
-
-            SaveCommand = ReactiveCommand.CreateFromTask(Save);
 
             this.WhenAnyValue(vm => vm.ScrollValue)
                 .Subscribe(_ => UpdateScroll());
@@ -126,16 +120,16 @@ namespace XiUWP.ViewModel
 
         private async Task Save()
         {
-            await _xiService.SaveView();
+            await _xiService.Save();
         }
 
-        public void PointerPressed(Point position)
+        public void PointerPressed(Point position, int clickCount = 1)
         {
             var lineAndIndex = GetLineAndCursorIndexFromPos(position);
             var lineIndex = lineAndIndex.Item1;
             var charIndex = lineAndIndex.Item2;
 
-            _xiService.Click(lineIndex, charIndex, 0, 1);
+            _xiService.Click(lineIndex, charIndex, 0, clickCount);
 
             _rootCanvas.Invalidate();
             _isDraggingMouse = true;
@@ -150,7 +144,11 @@ namespace XiUWP.ViewModel
             var lineIndex = lineAndIndex.Item1;
             var charIndex = lineAndIndex.Item2;
 
-            _xiService.Drag(lineIndex, charIndex);
+            if (CursorAnchor.CharacterIndex != charIndex ||
+                CursorAnchor.LineIndex != lineIndex)
+            {
+                _xiService.Drag(lineIndex, charIndex);
+            }
         }
 
         public void PointerReleased(Point position)
@@ -159,11 +157,20 @@ namespace XiUWP.ViewModel
             var lineIndex = lineAndIndex.Item1;
             var charIndex = lineAndIndex.Item2;
 
-            _xiService.Drag(lineIndex, charIndex);
+            if (CursorAnchor.CharacterIndex != charIndex ||
+                CursorAnchor.LineIndex != lineIndex)
+            {
+                _xiService.Drag(lineIndex, charIndex);
+            }
 
             _isDraggingMouse = false;
         }
 
+        /// <summary>
+        /// Returns the line and character index from a screen position
+        /// </summary>
+        /// <param name="position"></param>
+        /// <returns></returns>
         private Tuple<int, int> GetLineAndCursorIndexFromPos(Point position)
         {
             CanvasTextLayoutRegion hitRegion;
@@ -172,6 +179,7 @@ namespace XiUWP.ViewModel
 
             var yOffset = 0;
 
+            // Only check visible lines
             for (int i = _firstVisibleLine; i < _lastVisibleLine; i++)
             {
                 var line = _lines[i];
@@ -214,71 +222,78 @@ namespace XiUWP.ViewModel
 
         public async Task KeyPressed(VirtualKey key)
         {
-            var hasCtrlMod = Window.Current.CoreWindow
-                .GetKeyState(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            var window = Window.Current.CoreWindow;
+            var hasCtrlMod = window
+                .GetKeyState(VirtualKey.Control)
+                .HasFlag(CoreVirtualKeyStates.Down);
 
-            var hasShiftMod = Window.Current.CoreWindow
-                .GetKeyState(Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            
-            switch (key)
+            var hasShiftMod = window
+                .GetKeyState(VirtualKey.Shift)
+                .HasFlag(CoreVirtualKeyStates.Down);
+
+            var desiredGenericAction = _genericEditActions
+                .FirstOrDefault(action =>
+                {
+                    if (action.Key != key)
+                        return false;
+
+                    if (hasCtrlMod || hasShiftMod)
+                    {
+                        return action.Modifier == VirtualKey.None ?
+                            false : window.GetKeyState(action.Modifier).HasFlag(CoreVirtualKeyStates.Down);
+                    }
+                    else
+                    {
+                        return action.Modifier == VirtualKey.None ?
+                            true : window.GetKeyState(action.Modifier).HasFlag(CoreVirtualKeyStates.Down);
+                    }
+                });
+
+            if (desiredGenericAction != null)
             {
-                case VirtualKey.Tab:
-                    await _xiService.GenericEdit("insert_tab");
-                    break;
-                case VirtualKey.Enter:
-                    await _xiService.GenericEdit("insert_newline");
-                    break;
-                case VirtualKey.Back:
-                case VirtualKey.Delete:
-                    var deleteMode = hasCtrlMod ? "delete_word_backward" : "delete_backward";
-                    await _xiService.GenericEdit(deleteMode);
-                    break;
-                case VirtualKey.Control:
-                    break;
-                case VirtualKey.Shift:
-                    break;
-                case VirtualKey.Up:
-                    await _xiService.GenericEdit("move_up");
-                    break;
-                case VirtualKey.Down:
-                    await _xiService.GenericEdit("move_down");
-                    break;
-                case VirtualKey.Left:
-                    if (_cursorIndex == 0)
-                    {
-                        await _xiService.GenericEdit("move_up");
-                        await _xiService.GenericEdit("move_to_right_end_of_line");
-                    }
-                    else
-                    {
-                        _xiService.GenericEdit("move_left");
-                    }
-                    break;
-                case VirtualKey.Right:
-                    if (LineUtils.IsNextToPlainLineBreak(_currentLine, _cursorIndex, LogicalDirection.Forward))
-                    {
-                        await _xiService.GenericEdit("move_to_left_end_of_line");
-                        await _xiService.GenericEdit("move_down");
-                    }
-                    else
-                    {
-                        await _xiService.GenericEdit("move_right");
-                    }
-                    break;
-                case VirtualKey.Z:
-                    if (hasCtrlMod)
-                    {
-                        await _xiService.GenericEdit("undo");
-                    }
-                    break;
-                case VirtualKey.Y:
-                    if (hasCtrlMod)
-                    {
-                        await _xiService.GenericEdit("redo");
-                    }
-                    break;
-                default:
-                    break;
+                await _xiService.GenericEdit(desiredGenericAction.Command);
+            }
+            else
+            {
+                switch (key)
+                {
+                    case VirtualKey.Left:
+                        if (CursorAnchor.IsAtStartOfLine)
+                        {
+                            await _xiService.GenericEdit("move_up");
+                            await _xiService.GenericEdit("move_to_right_end_of_line");
+                        }
+                        else
+                        {
+                            if (hasShiftMod)
+                                await _xiService.GenericEdit("move_left_and_modify_selection");
+                            else
+                                await _xiService.GenericEdit("move_left");
+                        }
+                        break;
+                    case VirtualKey.Right:
+                        if (LineUtils.IsNextToPlainLineBreak(_currentLine, CursorAnchor.CharacterIndex, LogicalDirection.Forward))
+                        {
+                            await _xiService.GenericEdit("move_to_left_end_of_line");
+                            await _xiService.GenericEdit("move_down");
+                        }
+                        else
+                        {
+                            if (hasShiftMod)
+                                await _xiService.GenericEdit("move_right_and_modify_selection");
+                            else
+                                await _xiService.GenericEdit("move_right");
+                        }
+                        break;
+                    case VirtualKey.S:
+                        if (hasCtrlMod)
+                        {
+                            await Save();
+                        }
+                        break;
+                    default:
+                        break;
+                }
             }
 
             _rootCanvas.Invalidate();
@@ -288,11 +303,9 @@ namespace XiUWP.ViewModel
         {
             if (!_lines.Any())
                 return;
-
-            var lineHeight = 16;
-            var lineCount = (int)(_rootCanvas.ActualHeight / lineHeight);
-
-            _visibleLineCount = lineCount + 10;
+            
+            var lineCount = (int)(_rootCanvas.ActualHeight / LINE_HEIGHT);
+            _visibleLineCount = lineCount + 5;
 
             UpdateScroll();
         }
@@ -306,7 +319,7 @@ namespace XiUWP.ViewModel
             if (scrollTo.Line < _firstVisibleLine ||
                 scrollTo.Line > _lastVisibleLine)
             {
-                var lineHeight = 16;
+                var lineHeight = LINE_HEIGHT;
                 await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
                 {
                     ScrollValue = scrollTo.Line * lineHeight;
@@ -319,7 +332,7 @@ namespace XiUWP.ViewModel
             if (!_lines.Any())
                 return;
 
-            var lineHeight = 16;// Math.Max(1, _lines[0].Bounds.Height);
+            var lineHeight = LINE_HEIGHT;// Math.Max(1, _lines[0].Bounds.Height);
             _firstVisibleLine = (int)Math.Max(0, ScrollValue / lineHeight);
             _lastVisibleLine = (int)Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count - 1);
 
@@ -382,11 +395,11 @@ namespace XiUWP.ViewModel
 
                                     if (line.Cursor != null)
                                     {
-                                        _cursorIndex = line.Cursor[0];
                                         _currentLine = line.Text;
-                                        _cursorLineIndex = newLines.Count - 1;
+                                        CursorAnchor.CharacterIndex = line.Cursor[0];
+                                        CursorAnchor.LineIndex = newLines.Count - 1;
 
-                                        if (LineUtils.IsNextToPlainLineBreak(_currentLine, _cursorIndex, LogicalDirection.Backward))
+                                        if (LineUtils.IsNextToPlainLineBreak(_currentLine, CursorAnchor.CharacterIndex, LogicalDirection.Backward))
                                         {
                                             _xiService.GenericEdit("move_left");
                                         }
@@ -411,7 +424,7 @@ namespace XiUWP.ViewModel
                 if (_lines.Any())
                 {
                     ScrollViewportSize = _rootCanvas.ActualHeight;
-                    MaxScroll = Math.Max(1, ((_lines.Count * 16) - ScrollViewportSize));
+                    MaxScroll = Math.Max(1, ((_lines.Count * LINE_HEIGHT) - ScrollViewportSize));
                     UpdateVisibleLineCount();
                 }
             }).ConfigureAwait(false);
@@ -419,8 +432,6 @@ namespace XiUWP.ViewModel
 
         private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
-            _cachedText.Clear();
-
             int yOffset = 0;
           
             for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
@@ -443,13 +454,10 @@ namespace XiUWP.ViewModel
                 }
 
                 // Update cursor position
-                if (i == _cursorLineIndex)
+                if (i == CursorAnchor.LineIndex)
                 {
-                    var pos = _lines[i].GetCaretPosition(_cursorIndex);
-                    CursorLeft = pos.X;
-                    CursorTop = pos.Y + yOffset;
+                    CursorAnchor.SetPosition(_lines[i], yOffset);
                 }
-                _cachedText.AppendLine(_lines[i].Text);
                 yOffset += (int)(_lines[i].Bounds.Height);
             }
         }
@@ -463,7 +471,7 @@ namespace XiUWP.ViewModel
                 if (_lines[i].TextLayout == null)
                     continue;
 
-                lineBuilder.AppendLine(i.ToString());
+                lineBuilder.AppendLine((i + 1).ToString());
             }
 
             var textLayout = new CanvasTextLayout(_gutterCanvas,

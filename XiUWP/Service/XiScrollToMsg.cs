@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace XiUWP.Service
 {
-    public class XiScrollToMsg
+    public class XiScrollToMsg : IXiBaseMsg
     {
         [JsonProperty("col")]
         public int Column { get; set; }
@@ -16,6 +16,6 @@ namespace XiUWP.Service
         public int Line { get; set; }
 
         [JsonProperty("view_id")]
-        public string ViewId { get; set; }
+        public string ViewID { get; set; }
     }
 }
