@@ -106,11 +106,7 @@
     <Compile Include="Service\XiStyleMsg.cs" />
     <Compile Include="Service\XiUpdateMsg.cs" />
     <Compile Include="Util\LineUtils.cs" />
-    <Compile Include="ViewModel\MarkdownPreviewViewModel.cs" />
     <Compile Include="ViewModel\TextViewModel.cs" />
-    <Compile Include="View\MarkdownPreviewView.xaml.cs">
-      <DependentUpon>MarkdownPreviewView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="View\TextCanvasView.xaml.cs">
       <DependentUpon>TextCanvasView.xaml</DependentUpon>
     </Compile>
@@ -139,10 +135,6 @@
     <Page Include="MainPage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
-    </Page>
-    <Page Include="View\MarkdownPreviewView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="View\TextCanvasView.xaml">
       <SubType>Designer</SubType>

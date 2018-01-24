@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Foundation;
@@ -35,13 +36,22 @@ namespace XiUWP.View
                 '\r', // Return
             };
 
-            _viewModel = new TextViewModel(this.RootCanvas);
+            _viewModel = new TextViewModel(this.RootCanvas, this.GutterCanvas);
             this.DataContext = _viewModel;
 
             // Setup input events
             RootCanvas.PointerPressed += RootCanvas_PointerPressed;
-            RootCanvas.PointerMoved += RootCanvas_PointerMoved;
             RootCanvas.PointerReleased += RootCanvas_PointerReleased;
+
+            Observable
+                .FromEventPattern<PointerEventHandler, PointerRoutedEventArgs>(
+                    h => RootCanvas.PointerMoved += h,
+                    h => RootCanvas.PointerMoved -= h)
+                .Where(_ => _viewModel.IsDraggingMouse)
+                .Select(x => x.EventArgs.GetCurrentPoint(RootCanvas).Position)
+                .Sample(TimeSpan.FromMilliseconds(50))
+                .ObserveOnDispatcher(Windows.UI.Core.CoreDispatcherPriority.Low)
+                .Subscribe((point) => _viewModel.PointerMoved(point));
 
             Window.Current.CoreWindow.KeyDown += CoreWindow_KeyDown;
             Window.Current.CoreWindow.CharacterReceived += CoreWindow_CharacterReceived;
@@ -73,6 +83,8 @@ namespace XiUWP.View
             if (_viewModel == null)
                 return;
 
+            RootCanvas.Focus(FocusState.Programmatic);
+
             var c = Convert.ToChar(args.KeyCode);
             if (_charsToSkip.Contains(c))
             {
@@ -91,6 +103,7 @@ namespace XiUWP.View
             if (_viewModel == null)
                 return;
 
+            RootCanvas.Focus(FocusState.Programmatic);
             await _viewModel.KeyPressed(args.VirtualKey);
         }
 
@@ -104,21 +117,12 @@ namespace XiUWP.View
             _viewModel.PointerPressed(e.GetCurrentPoint(RootCanvas).Position);
         }
 
-        private async void RootCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
-        {
-            if (_viewModel == null)
-                return;
-
-            await _viewModel.PointerMoved(e.GetCurrentPoint(RootCanvas).Position);
-        }
-
         private void RootCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
             if (_viewModel == null)
                 return;
 
             e.Handled = true;
-            RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerReleased(e.GetCurrentPoint(RootCanvas).Position);
         }
 

@@ -16,17 +16,26 @@
     </UserControl.Resources>
 
     <Grid Background="#FAFBFC">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        
         <Grid>
-            <canvas:CanvasControl x:Name="RootCanvas" Margin="16"
-                                  PointerEntered="RootCanvas_PointerEntered"
-                                  PointerExited="RootCanvas_PointerExited"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="50"/>
+                <ColumnDefinition Width="1"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <Canvas IsHitTestVisible="False" Margin="16">
+            <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,16,8,16"
+                                  HorizontalAlignment="Stretch"
+                                  Grid.Column="0"/>
+
+            <Rectangle Grid.Column="1" Width="1" VerticalAlignment="Stretch"
+                       Fill="Black" Opacity="0.1" Margin="0,16,0,16"/>
+
+            <canvas:CanvasControl x:Name="RootCanvas" Margin="4,16,16,16"
+                                  PointerEntered="RootCanvas_PointerEntered"
+                                  PointerExited="RootCanvas_PointerExited"
+                                  Grid.Column="2"/>
+
+            <Canvas IsHitTestVisible="False" Margin="4,16,16,16" Grid.Column="1">
                 <Rectangle Width="1" Height="16" x:Name="CanvasCursor" Fill="Black"
                            Canvas.Left="{Binding CursorLeft}" Canvas.Top="{Binding CursorTop}">
                     <Rectangle.Triggers>
@@ -52,10 +61,8 @@
             <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
                        VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
                        Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
-                       ViewportSize="{Binding ScrollViewportSize}"/>
+                       ViewportSize="{Binding ScrollViewportSize}"
+                       Grid.Column="2"/>
         </Grid>
-
-        <local:MarkdownPreviewView DataContext="{Binding MarkdownPreviewViewModel}"
-                                   Grid.Column="1"/>
     </Grid>
 </UserControl>

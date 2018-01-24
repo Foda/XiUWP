@@ -80,7 +80,7 @@ namespace XiUWP.Service
             defaultSettings.AppendLine("translate_tabs_to_spaces = true");
             defaultSettings.AppendLine("use_tab_stops = true");
             defaultSettings.AppendLine("auto_indent = false");
-            defaultSettings.AppendLine("scroll_past_end = false");
+            defaultSettings.AppendLine("scroll_past_end = true");
             defaultSettings.AppendLine("wrap_width = 0");
 
             var settingsFile = await localFolder.CreateFileAsync(defaultSettingsFileName, CreationCollisionOption.ReplaceExisting);

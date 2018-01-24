@@ -27,6 +27,7 @@ namespace XiUWP.ViewModel
         private XIService _xiService;
 
         private CanvasControl _rootCanvas;
+        private CanvasControl _gutterCanvas;
         private CanvasTextFormat _textFormat;
         private List<LineSpan> _lines = new List<LineSpan>();
         private string _currentLine = "";
@@ -70,19 +71,14 @@ namespace XiUWP.ViewModel
             set { this.RaiseAndSetIfChanged(ref _scrollValue, value); }
         }
 
-        private MarkdownPreviewViewModel _markdownPreviewViewModel;
-        public MarkdownPreviewViewModel MarkdownPreviewViewModel
-        {
-            get { return _markdownPreviewViewModel; }
-            private set { this.RaiseAndSetIfChanged(ref _markdownPreviewViewModel, value); }
-        }
-
         private bool _showMarkdownPreview;
         public bool ShowMarkdownPreview
         {
             get { return _showMarkdownPreview; }
             private set { this.RaiseAndSetIfChanged(ref _showMarkdownPreview, value); }
         }
+
+        public bool IsDraggingMouse { get { return _isDraggingMouse; } }
 
         public ReactiveCommand SaveCommand { get; }
 
@@ -93,10 +89,13 @@ namespace XiUWP.ViewModel
 
         private StringBuilder _cachedText = new StringBuilder();
 
-        public TextViewModel(CanvasControl rootCanvas)
+        public TextViewModel(CanvasControl rootCanvas, CanvasControl gutterCanvas)
         {
             _rootCanvas = rootCanvas;
             _rootCanvas.Draw += _rootCanvas_Draw;
+
+            _gutterCanvas = gutterCanvas;
+            _gutterCanvas.Draw += _gutterCanvas_Draw;
 
             _textFormat = new CanvasTextFormat();
             _textFormat.FontFamily = "Consolas";
@@ -114,8 +113,6 @@ namespace XiUWP.ViewModel
             });
 
             SaveCommand = ReactiveCommand.CreateFromTask(Save);
-
-            MarkdownPreviewViewModel = new MarkdownPreviewViewModel();
 
             this.WhenAnyValue(vm => vm.ScrollValue)
                 .Subscribe(_ => UpdateScroll());
@@ -144,7 +141,7 @@ namespace XiUWP.ViewModel
             _isDraggingMouse = true;
         }
 
-        public async Task PointerMoved(Point position)
+        public void PointerMoved(Point position)
         {
             if (!_isDraggingMouse)
                 return;
@@ -153,7 +150,7 @@ namespace XiUWP.ViewModel
             var lineIndex = lineAndIndex.Item1;
             var charIndex = lineAndIndex.Item2;
 
-            await _xiService.Drag(lineIndex, charIndex);
+            _xiService.Drag(lineIndex, charIndex);
         }
 
         public void PointerReleased(Point position)
@@ -325,16 +322,19 @@ namespace XiUWP.ViewModel
             var lineHeight = 16;// Math.Max(1, _lines[0].Bounds.Height);
             _firstVisibleLine = (int)Math.Max(0, ScrollValue / lineHeight);
             _lastVisibleLine = (int)Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count - 1);
-            
+
+            if (_lastVisibleLine <= _firstVisibleLine)
+                return;
+
             _xiService.Scroll(_firstVisibleLine, _lastVisibleLine);
             _rootCanvas.Invalidate();
+            _gutterCanvas.Invalidate();
         }
 
         private async void UpdateTextView(XiUpdateOperation update)
         {
             var oldIdx = 0;
             var newLines = new List<LineSpan>();
-            var cursorLine = -1;
 
             await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
             {
@@ -382,10 +382,9 @@ namespace XiUWP.ViewModel
 
                                     if (line.Cursor != null)
                                     {
-                                        cursorLine = newLines.Count - 1;
                                         _cursorIndex = line.Cursor[0];
                                         _currentLine = line.Text;
-                                        _cursorLineIndex = cursorLine;
+                                        _cursorLineIndex = newLines.Count - 1;
 
                                         if (LineUtils.IsNextToPlainLineBreak(_currentLine, _cursorIndex, LogicalDirection.Backward))
                                         {
@@ -411,8 +410,8 @@ namespace XiUWP.ViewModel
 
                 if (_lines.Any())
                 {
-                    MaxScroll = _lines.Count * 16;
                     ScrollViewportSize = _rootCanvas.ActualHeight;
+                    MaxScroll = Math.Max(1, ((_lines.Count * 16) - ScrollViewportSize));
                     UpdateVisibleLineCount();
                 }
             }).ConfigureAwait(false);
@@ -453,52 +452,27 @@ namespace XiUWP.ViewModel
                 _cachedText.AppendLine(_lines[i].Text);
                 yOffset += (int)(_lines[i].Bounds.Height);
             }
-
-            MarkdownPreviewViewModel.MarkdownPreviewText = _cachedText.ToString();
         }
 
-        public async Task BoldSelection()
+        private void _gutterCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
-            await WrapSelectionInChars("**");
-        }
+            var lineBuilder = new StringBuilder();
 
-        public async Task ItalicsSelection()
-        {
-            await WrapSelectionInChars("_");
-        }
-
-        public async Task HeaderCurrentLine(int headerLevel)
-        {
-            var headerBuilder = new StringBuilder();
-            for (int i = 0; i < headerLevel; i++)
+            for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
             {
-                headerBuilder.Append("#");
-            }
-            headerBuilder.Append(" ");
-
-            var oldCursorIndex = _cursorIndex + headerLevel;
-
-            await _xiService.Click(_cursorLineIndex, 0, 0, 1);
-            await _xiService.Insert(headerBuilder.ToString());
-            await _xiService.Click(_cursorLineIndex, oldCursorIndex, 0, 1);
-        }
-
-        private async Task WrapSelectionInChars(string whatToInsert)
-        {
-            for (int i = 0; i < _lines.Count; i++)
-            {
-                if (!_lines[i].HasSelectBounds)
+                if (_lines[i].TextLayout == null)
                     continue;
 
-                var startIdx = _lines[i].SelectedStartCharIndex;
-                var endIdx = _lines[i].SelectedEndCharIndex + 1;
-
-                await _xiService.Click(i, startIdx, 0, 1);
-                await _xiService.Insert(whatToInsert);
-
-                await _xiService.Click(i, endIdx, 0, 1);
-                await _xiService.Insert(whatToInsert);
+                lineBuilder.AppendLine(i.ToString());
             }
+
+            var textLayout = new CanvasTextLayout(_gutterCanvas,
+                lineBuilder.ToString(), _textFormat, 
+                (float)_gutterCanvas.ActualWidth, 
+                (float)_gutterCanvas.ActualHeight);
+
+            args.DrawingSession.DrawTextLayout(textLayout,
+                        new Vector2(0, 0), Windows.UI.Colors.SlateGray);
         }
     }
 }

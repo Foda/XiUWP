@@ -15,8 +15,7 @@
                    DisplayMode="CompactInline">
             <SplitView.Pane>
                 <Grid>
-                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24"
-                                DataContext="{Binding ElementName=RootTextView.DataContext}">
+                    <StackPanel Orientation="Vertical" Grid.Row="0" Margin="0,60,0,24">
                         <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent" x:Name="OpenDocument"
                                 Click="OpenDocument_Click">
                             <StackPanel Orientation="Horizontal">
@@ -27,7 +26,7 @@
 
                         <Button Style="{ThemeResource ButtonRevealStyle}" Background="Transparent"
                                 Margin="0,16,0,0" x:Name="SaveSidebar" 
-                                Command="{Binding SaveCommand}">
+                                Command="{Binding ElementName=RootTextView, Path=DataContext.SaveCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="Save"/>
                                 <TextBlock Text="Save" Margin="24,0,0,0" VerticalAlignment="Center"/>
