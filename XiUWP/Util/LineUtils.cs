@@ -23,6 +23,17 @@ namespace XiUWP.Util
             }
             else if (direction == LogicalDirection.Forward && cursorIdx < line.Length - 1)
             {
+                var index = cursorIdx + 1;
+                if (index < line.Length)
+                {
+                    var c = line[index];
+                    if (IsCharUnicodeNewLine(c) &&
+                        IsCharUnicodeNewLine(line[index + 1]))
+                    {
+                        return true;
+                    }
+                }
+
                 return IsCharUnicodeNewLine(line[cursorIdx]);
             }
 

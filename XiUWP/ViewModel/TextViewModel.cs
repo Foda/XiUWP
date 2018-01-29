@@ -19,6 +19,7 @@ using XiUWP.Model;
 using XiUWP.Util;
 using System.Reactive;
 using Windows.UI.Core;
+using Windows.UI.Text.Core;
 
 namespace XiUWP.ViewModel
 {
@@ -31,9 +32,12 @@ namespace XiUWP.ViewModel
         private CanvasControl _gutterCanvas;
         private CanvasTextFormat _textFormat;
         private List<LineSpan> _lines = new List<LineSpan>();
-        private string _currentLine = "";
+        private LineSpan _currentLine;
 
         private Windows.UI.Color _selectColor = Windows.UI.Color.FromArgb(128, 0, 120, 215);
+        //private Windows.UI.Color _lineTextColor = Windows.UI.Color.FromArgb(255, 110, 150, 170); greenish
+        // also try: #336e7b
+        private Windows.UI.Color _lineTextColor = Windows.UI.Color.FromArgb(255, 86, 27, 141);
 
         private int _visibleLineCount = 0;
         private int _firstVisibleLine = 0;
@@ -72,11 +76,30 @@ namespace XiUWP.ViewModel
             get { return _isDraggingMouse; }
         }
 
+        private string _file = "";
+        public string File
+        {
+            get { return _file; }
+            private set { this.RaiseAndSetIfChanged(ref _file, value); }
+        }
+
+        // CoreTextEditContext Stuff
+        private CoreTextEditContext _editContext;
+        private CoreTextRange _selection;
+        private bool _internalFocus = false;
+
+        //scroll_page_up
         private List<EditAction> _genericEditActions = new List<EditAction>()
         {
             // Modifier, Key, Action
             new EditAction(VirtualKey.None, VirtualKey.Up, "move_up"),
             new EditAction(VirtualKey.None, VirtualKey.Down, "move_down"),
+            new EditAction(VirtualKey.None, VirtualKey.PageUp, "page_up"),
+            new EditAction(VirtualKey.None, VirtualKey.PageDown, "page_down"),
+            new EditAction(VirtualKey.Control, VirtualKey.Up, "scroll_page_up"),
+            new EditAction(VirtualKey.Control, VirtualKey.Down, "scroll_page_down"),
+            new EditAction(VirtualKey.Control, VirtualKey.Home, "move_to_beginning_of_document"),
+            new EditAction(VirtualKey.Control, VirtualKey.End, "move_to_end_of_document"),
             new EditAction(VirtualKey.None, VirtualKey.Tab, "insert_tab"),
             new EditAction(VirtualKey.None, VirtualKey.Enter, "insert_newline"),
             new EditAction(VirtualKey.None, VirtualKey.Back, "delete_backward"),
@@ -85,6 +108,8 @@ namespace XiUWP.ViewModel
             new EditAction(VirtualKey.Control, VirtualKey.Z, "undo"),
             new EditAction(VirtualKey.Control, VirtualKey.Y, "redo"),
             new EditAction(VirtualKey.Control, VirtualKey.A, "select_all"),
+            new EditAction(VirtualKey.Control, VirtualKey.K, "yank"),
+            new EditAction(VirtualKey.Control, VirtualKey.T, "transpose"),
         };
 
         public TextViewModel(CanvasControl rootCanvas, CanvasControl gutterCanvas)
@@ -99,7 +124,7 @@ namespace XiUWP.ViewModel
             _textFormat.FontFamily = "Consolas";
             _textFormat.FontSize = 12;
             _textFormat.WordWrapping = CanvasWordWrapping.NoWrap; //Xi handles this for us
-
+            
             _xiService = new XIService();
             _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update.Update));
             _xiService.ScrollToObservable.Subscribe(async scrollTo => await ScrollToLine(scrollTo));
@@ -108,6 +133,42 @@ namespace XiUWP.ViewModel
                 Debug.WriteLine(update.ID);
             });
 
+            //var coreTextManager = CoreTextServicesManager.GetForCurrentView();
+            //_editContext = coreTextManager.CreateEditContext();
+            //_editContext.InputScope = CoreTextInputScope.Text;
+
+            // The system raises this event to request a specific range of text.
+            //_editContext.TextRequested += EditContext_TextRequested;
+
+            // The system raises this event to request the current selection.
+            //_editContext.SelectionRequested += EditContext_SelectionRequested;
+
+            // The system raises this event when it wants the edit control to remove focus.
+            //_editContext.FocusRemoved += EditContext_FocusRemoved;
+
+            // The system raises this event to update text in the edit control.
+            //_editContext.TextUpdating += EditContext_TextUpdating;
+
+            // The system raises this event to change the selection in the edit control.
+            //_editContext.SelectionUpdating += EditContext_SelectionUpdating;
+
+            // The system raises this event when it wants the edit control
+            // to apply formatting on a range of text.
+            //_editContext.FormatUpdating += EditContext_FormatUpdating;
+
+            // The system raises this event to request layout information.
+            // This is used to help choose a position for the IME candidate window.
+            //_editContext.LayoutRequested += EditContext_LayoutRequested;
+
+            // The system raises this event to notify the edit control
+            // that the string composition has started.
+            //_editContext.CompositionStarted += EditContext_CompositionStarted;
+
+            // The system raises this event to notify the edit control
+            // that the string composition is finished.
+            //_editContext.CompositionCompleted += EditContext_CompositionCompleted;
+
+
             this.WhenAnyValue(vm => vm.ScrollValue)
                 .Subscribe(_ => UpdateScroll());
         }
@@ -115,6 +176,7 @@ namespace XiUWP.ViewModel
         public async Task OpenFile(string file)
         {
             _lines.Clear();
+            File = file;
             await _xiService.OpenNewView(file);
         }
 
@@ -125,9 +187,20 @@ namespace XiUWP.ViewModel
 
         public void PointerPressed(Point position, int clickCount = 1)
         {
+            if (!_internalFocus)
+            {
+                _internalFocus = true;
+                //_editContext.NotifyFocusEnter();
+            }
+
             var lineAndIndex = GetLineAndCursorIndexFromPos(position);
             var lineIndex = lineAndIndex.Item1;
             var charIndex = lineAndIndex.Item2;
+
+            if (charIndex > _lines[lineIndex].Text.Length)
+            {
+                charIndex = _lines[lineIndex].Text.Length;
+            }
 
             _xiService.Click(lineIndex, charIndex, 0, clickCount);
 
@@ -258,31 +331,32 @@ namespace XiUWP.ViewModel
                 switch (key)
                 {
                     case VirtualKey.Left:
-                        if (CursorAnchor.IsAtStartOfLine)
+                        if (hasShiftMod)
                         {
-                            await _xiService.GenericEdit("move_up");
-                            await _xiService.GenericEdit("move_to_right_end_of_line");
+                            await _xiService.GenericEdit("move_left_and_modify_selection");
                         }
                         else
                         {
-                            if (hasShiftMod)
-                                await _xiService.GenericEdit("move_left_and_modify_selection");
-                            else
-                                await _xiService.GenericEdit("move_left");
+                            await _xiService.GenericEdit("move_left");
                         }
                         break;
                     case VirtualKey.Right:
-                        if (LineUtils.IsNextToPlainLineBreak(_currentLine, CursorAnchor.CharacterIndex, LogicalDirection.Forward))
+                        if (_currentLine != null && CursorAnchor.CharacterIndex + 1 > _currentLine.Text.Length)
                         {
+                            // Move to start of next line
                             await _xiService.GenericEdit("move_to_left_end_of_line");
                             await _xiService.GenericEdit("move_down");
                         }
                         else
                         {
                             if (hasShiftMod)
+                            {
                                 await _xiService.GenericEdit("move_right_and_modify_selection");
+                            }
                             else
+                            {
                                 await _xiService.GenericEdit("move_right");
+                            }
                         }
                         break;
                     case VirtualKey.S:
@@ -322,7 +396,7 @@ namespace XiUWP.ViewModel
                 var lineHeight = LINE_HEIGHT;
                 await DispatcherHelper.ExecuteOnUIThreadAsync(() =>
                 {
-                    ScrollValue = scrollTo.Line * lineHeight;
+                    ScrollValue = Math.Min(MaxScroll, scrollTo.Line * lineHeight);
                 });
             }
         }
@@ -331,15 +405,12 @@ namespace XiUWP.ViewModel
         {
             if (!_lines.Any())
                 return;
-
-            var lineHeight = LINE_HEIGHT;// Math.Max(1, _lines[0].Bounds.Height);
-            _firstVisibleLine = (int)Math.Max(0, ScrollValue / lineHeight);
-            _lastVisibleLine = (int)Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count - 1);
-
-            if (_lastVisibleLine <= _firstVisibleLine)
-                return;
+            
+            _firstVisibleLine = (int)Math.Max(0, ScrollValue / LINE_HEIGHT);
+            _lastVisibleLine = (int)Math.Max(1, Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count));
 
             _xiService.Scroll(_firstVisibleLine, _lastVisibleLine);
+
             _rootCanvas.Invalidate();
             _gutterCanvas.Invalidate();
         }
@@ -383,8 +454,12 @@ namespace XiUWP.ViewModel
                                 // It does not update old_ix.
                                 foreach (var line in op.Lines)
                                 {
+                                    var formattedLine = line.Text;
+                                    if (formattedLine.EndsWith("\r\n"))
+                                        formattedLine = formattedLine.Remove(formattedLine.Length - 2);
+
                                     var newLine = new LineSpan(
-                                        line.Text.Trim(),
+                                        formattedLine,
                                         line.Style);
 
                                     newLine.Layout(_rootCanvas, _textFormat,
@@ -395,11 +470,12 @@ namespace XiUWP.ViewModel
 
                                     if (line.Cursor != null)
                                     {
-                                        _currentLine = line.Text;
+                                        _currentLine = newLine;
                                         CursorAnchor.CharacterIndex = line.Cursor[0];
                                         CursorAnchor.LineIndex = newLines.Count - 1;
 
-                                        if (LineUtils.IsNextToPlainLineBreak(_currentLine, CursorAnchor.CharacterIndex, LogicalDirection.Backward))
+                                        if (LineUtils.IsNextToPlainLineBreak(line.Text, CursorAnchor.CharacterIndex, LogicalDirection.Backward) &&
+                                            CursorAnchor.CharacterIndex == line.Text.Length - 1)
                                         {
                                             _xiService.GenericEdit("move_left");
                                         }
@@ -419,6 +495,7 @@ namespace XiUWP.ViewModel
                     }
                 }
 
+                // Update our line cache
                 _lines = newLines;
 
                 if (_lines.Any())
@@ -479,8 +556,7 @@ namespace XiUWP.ViewModel
                 (float)_gutterCanvas.ActualWidth, 
                 (float)_gutterCanvas.ActualHeight);
 
-            args.DrawingSession.DrawTextLayout(textLayout,
-                        new Vector2(0, 0), Windows.UI.Colors.SlateGray);
+            args.DrawingSession.DrawTextLayout(textLayout, new Vector2(0, 0), _lineTextColor);
         }
     }
 }

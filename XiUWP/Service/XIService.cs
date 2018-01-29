@@ -82,6 +82,7 @@ namespace XiUWP.Service
             defaultSettings.AppendLine("auto_indent = false");
             defaultSettings.AppendLine("scroll_past_end = true");
             defaultSettings.AppendLine("wrap_width = 0");
+            defaultSettings.AppendLine("line_ending = \"\r\n\"");
 
             var settingsFile = await localFolder.CreateFileAsync(defaultSettingsFileName, CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(settingsFile, defaultSettings.ToString());

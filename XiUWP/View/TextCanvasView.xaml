@@ -17,60 +17,72 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </UserControl.Resources>
 
-    <Grid Background="#FAFBFC">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="50"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,8,8,0"
+        <TextBlock Text="{Binding File, FallbackValue=FileName}" Grid.Row="0" HorizontalAlignment="Left"
+                   Margin="0,0,0,0" FontWeight="SemiLight" FontSize="16" VerticalAlignment="Center"/>
+
+        <uwpControls:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                     OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
+                                     ShadowOpacity="0.25" Grid.Row="1">
+            <Grid Background="#FAFBFC">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="50"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,8,8,0"
                                   HorizontalAlignment="Stretch"
                                   Grid.Column="0"/>
 
-            <Image HorizontalAlignment="Right" Width="8" VerticalAlignment="Stretch"
+                <Image HorizontalAlignment="Right" Width="8" VerticalAlignment="Stretch"
                    Stretch="Fill" Source="ms-appx:///Assets/shadow_8x1.png"
                    Grid.Column="0" Opacity="0.75"/>
 
-            <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0"
+                <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0"
                        Fill="#D2D2D2" HorizontalAlignment="Right" />
 
-            <canvas:CanvasControl x:Name="RootCanvas" Margin="4,8,16,0"
+                <canvas:CanvasControl x:Name="RootCanvas" Margin="4,8,16,0"
                                   Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
 
-            <Canvas IsHitTestVisible="False" Margin="4,8,16,0" Grid.Column="1">
-                <Rectangle Width="1" Height="14" x:Name="CanvasCursor" Fill="Black"
+                <Canvas IsHitTestVisible="False" Margin="4,8,16,0" Grid.Column="1">
+                    <Rectangle Width="1" Height="14" x:Name="CanvasCursor" Fill="Black"
                            Canvas.Left="{Binding CursorAnchor.CursorLeft}" 
                            Canvas.Top="{Binding CursorAnchor.CursorTop}">
-                    <Rectangle.Triggers>
-                        <EventTrigger RoutedEvent="Rectangle.Loaded">
-                            <BeginStoryboard>
-                                <Storyboard x:Name="BlinkAnim">
-                                    <DoubleAnimationUsingKeyFrames 
+                        <Rectangle.Triggers>
+                            <EventTrigger RoutedEvent="Rectangle.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard x:Name="BlinkAnim">
+                                        <DoubleAnimationUsingKeyFrames 
                                         Storyboard.TargetName="CanvasCursor"
                                         Storyboard.TargetProperty="(Rectangle.Opacity)" 
                                         Duration="0:0:0.5" AutoReverse="True"  
                                         RepeatBehavior="Forever">
-                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
-                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0.25" Value="1"/>
-                                        <DiscreteDoubleKeyFrame KeyTime="0:0:0.5" Value="1"/>
-                                    </DoubleAnimationUsingKeyFrames>
-                                </Storyboard>
-                            </BeginStoryboard>
-                        </EventTrigger>
-                    </Rectangle.Triggers>
-                </Rectangle>
-            </Canvas>
+                                            <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
+                                            <DiscreteDoubleKeyFrame KeyTime="0:0:0.25" Value="1"/>
+                                            <DiscreteDoubleKeyFrame KeyTime="0:0:0.5" Value="1"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Rectangle.Triggers>
+                    </Rectangle>
+                </Canvas>
 
-            <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
+                <ScrollBar x:Name="MainVertScrollbar" HorizontalAlignment="Right"
                        VerticalAlignment="Stretch" IndicatorMode="MouseIndicator"
                        Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
                        ViewportSize="{Binding ScrollViewportSize}"
                        Grid.Column="1"/>
-        </Grid>
+            </Grid>
+        </uwpControls:DropShadowPanel>
 
         <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Width="150" x:Name="OpenHint">
+                    Width="150" x:Name="OpenHint" Grid.RowSpan="2">
             <Grid Width="64" Height="64" Opacity="0.2" >
                 <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
                            Text="&#xE115;" FontSize="64"
@@ -90,31 +102,6 @@
                                         RepeatBehavior="Forever">
                                         <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
                                         <LinearDoubleKeyFrame KeyTime="0:0:6" Value="360"/>
-                                    </DoubleAnimationUsingKeyFrames>
-                                </Storyboard>
-                            </BeginStoryboard>
-                        </EventTrigger>
-                    </TextBlock.Triggers>
-                </TextBlock>
-
-                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Text="&#xF0B4;" FontSize="38" Padding="2,2,0,0"
-                           RequestedTheme="Light" FontFamily="Segoe MDL2 Assets"
-                           RenderTransformOrigin="0.5, 0.5">
-                    <TextBlock.RenderTransform>
-                        <RotateTransform x:Name="InnerGearRotation"/>
-                    </TextBlock.RenderTransform>
-                    <TextBlock.Triggers>
-                        <EventTrigger RoutedEvent="TextBlock.Loaded">
-                            <BeginStoryboard>
-                                <Storyboard>
-                                    <DoubleAnimationUsingKeyFrames 
-                                        Storyboard.TargetName="InnerGearRotation"
-                                        Storyboard.TargetProperty="Angle" 
-                                        Duration="0:0:2" AutoReverse="False"  
-                                        RepeatBehavior="Forever">
-                                        <LinearDoubleKeyFrame KeyTime="0:0:0" Value="360"/>
-                                        <LinearDoubleKeyFrame KeyTime="0:0:2" Value="0"/>
                                     </DoubleAnimationUsingKeyFrames>
                                 </Storyboard>
                             </BeginStoryboard>

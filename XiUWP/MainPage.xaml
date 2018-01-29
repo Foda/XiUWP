@@ -27,14 +27,8 @@
                 </Grid>
             </SplitView.Pane>
 
-            <Grid>
-                <uwp:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                     OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
-                                     ShadowOpacity="0.25" Margin="0,42,0,0">
-                    <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                         x:Name="RootTextView"/>
-                </uwp:DropShadowPanel>
-            </Grid>
+            <view:TextCanvasView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                 x:Name="RootTextView" Margin="0,24,0,0"/>
         </SplitView>
     </Grid>
 </Page>
