@@ -124,7 +124,8 @@ namespace XiUWP.ViewModel
             _textFormat.FontFamily = "Consolas";
             _textFormat.FontSize = 12;
             _textFormat.WordWrapping = CanvasWordWrapping.NoWrap; //Xi handles this for us
-            
+            _textFormat.Options = CanvasDrawTextOptions.EnableColorFont;
+
             _xiService = new XIService();
             _xiService.UpdateObservable.Subscribe(update => UpdateTextView(update.Update));
             _xiService.ScrollToObservable.Subscribe(async scrollTo => await ScrollToLine(scrollTo));
@@ -511,8 +512,10 @@ namespace XiUWP.ViewModel
 
         private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
+            args.DrawingSession.Clear(Windows.UI.Colors.White);
+            args.DrawingSession.TextAntialiasing = CanvasTextAntialiasing.ClearType;
+
             int yOffset = 0;
-          
             for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
             {
                 if (_lines[i].TextLayout == null)
