@@ -37,16 +37,18 @@ namespace XiUWP.View
             
             _viewModel = new TextViewModel(this.RootCanvas, this.GutterCanvas);
             this.DataContext = _viewModel;
-
-            _blinkStartTimer = new DispatcherTimer();
-            _blinkStartTimer.Interval = TimeSpan.FromMilliseconds(200);
-            _blinkStartTimer.Tick += _blinkStartTimer_Tick;
         }
 
         public async Task OpenNewDocument(string file)
         {
             await _viewModel.OpenFile(file);
+
+            _blinkStartTimer = new DispatcherTimer();
+            _blinkStartTimer.Interval = TimeSpan.FromMilliseconds(200);
+            _blinkStartTimer.Tick += BlinkStartTimer_Tick;
+
             HookupInput();
+
             OpenHint.Visibility = Visibility.Collapsed;
         }
 
@@ -125,10 +127,12 @@ namespace XiUWP.View
             if (_viewModel == null)
                 return;
 
+            var pointerPoint = e.GetCurrentPoint(RootCanvas);
+            if (pointerPoint.Properties.IsRightButtonPressed)
+                return;
+
             e.Handled = true;
             RootCanvas.Focus(FocusState.Programmatic);
-
-            var pointerPoint = e.GetCurrentPoint(RootCanvas);
             _viewModel.PointerPressed(pointerPoint.Position);
         }
 
@@ -149,8 +153,12 @@ namespace XiUWP.View
             if (_viewModel == null)
                 return;
 
+            var pointerPoint = e.GetCurrentPoint(RootCanvas);
+            if (pointerPoint.Properties.IsRightButtonPressed)
+                return;
+
             e.Handled = true;
-            _viewModel.PointerReleased(e.GetCurrentPoint(RootCanvas).Position);
+            _viewModel.PointerReleased(pointerPoint.Position);
         }
 
         private void ResetBlinkTimer()
@@ -160,7 +168,7 @@ namespace XiUWP.View
             _blinkStartTimer.Start();
         }
 
-        private void _blinkStartTimer_Tick(object sender, object e)
+        private void BlinkStartTimer_Tick(object sender, object e)
         {
             BlinkAnim.Begin();
             _blinkStartTimer.Stop();

@@ -24,7 +24,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Text="{Binding File, FallbackValue=FileName}" Grid.Row="0" HorizontalAlignment="Left"
-                   Margin="0,0,0,0" FontWeight="SemiLight" FontSize="16" VerticalAlignment="Center"/>
+                   Margin="0,0,0,0" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
 
         <uwpControls:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                      OffsetX="-4" OffsetY="0" BlurRadius="16" Color="Black"
@@ -34,20 +34,24 @@
                     <ColumnDefinition Width="50"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="22"/>
+                </Grid.RowDefinitions>
 
                 <canvas:CanvasControl x:Name="GutterCanvas" Margin="8,8,8,0"
-                                  HorizontalAlignment="Stretch"
-                                  Grid.Column="0"/>
+                                      HorizontalAlignment="Stretch"
+                                      Grid.Column="0"/>
 
                 <Image HorizontalAlignment="Right" Width="8" VerticalAlignment="Stretch"
-                   Stretch="Fill" Source="ms-appx:///Assets/shadow_8x1.png"
-                   Grid.Column="0" Opacity="0.75"/>
+                       Stretch="Fill" Source="ms-appx:///Assets/shadow_8x1.png" Grid.RowSpan="2"
+                       Grid.Column="0" Opacity="0.75"/>
 
-                <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0"
-                       Fill="#D2D2D2" HorizontalAlignment="Right" />
+                <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0" Grid.RowSpan="2"
+                           Fill="#D2D2D2" HorizontalAlignment="Right" />
 
                 <canvas:CanvasControl x:Name="RootCanvas" Margin="4,8,16,0"
-                                  Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
+                                      Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
 
                 <Canvas IsHitTestVisible="False" Margin="4,8,16,0" Grid.Column="1">
                     <Rectangle Width="1" Height="14" x:Name="CanvasCursor" Fill="Black"
@@ -78,6 +82,20 @@
                        Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
                        ViewportSize="{Binding ScrollViewportSize}"
                        Grid.Column="1"/>
+
+                <uwpControls:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                             OffsetX="0" OffsetY="0" BlurRadius="4" Color="Black"
+                                             ShadowOpacity="0.25" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+                    <Grid Background="#6554C0" >
+                        <TextBlock FontFamily="Consolas" FontSize="12" VerticalAlignment="Center"
+                                   HorizontalAlignment="Right" Margin="0,0,8,0">
+                            <Run Text="Ln"/>
+                            <Run Text="{Binding CursorAnchor.LineIndex, Mode=OneWay, FallbackValue=0}"/>
+                            <Run Text=" Col" />
+                            <Run Text="{Binding CursorAnchor.CharacterIndex, Mode=OneWay, FallbackValue=0}"/>
+                        </TextBlock>
+                    </Grid>
+                </uwpControls:DropShadowPanel>
             </Grid>
         </uwpControls:DropShadowPanel>
 

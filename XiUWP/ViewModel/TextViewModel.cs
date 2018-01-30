@@ -25,7 +25,9 @@ namespace XiUWP.ViewModel
 {
     public class TextViewModel : ReactiveObject
     {
-        private const int LINE_HEIGHT = 16;
+        // TODO: Make this dynamic
+        // Consolas font @ 12
+        private double LINE_HEIGHT = 14.05078125;
         private XIService _xiService;
 
         private CanvasControl _rootCanvas;
@@ -35,9 +37,7 @@ namespace XiUWP.ViewModel
         private LineSpan _currentLine;
 
         private Windows.UI.Color _selectColor = Windows.UI.Color.FromArgb(128, 0, 120, 215);
-        //private Windows.UI.Color _lineTextColor = Windows.UI.Color.FromArgb(255, 110, 150, 170); greenish
-        // also try: #336e7b
-        private Windows.UI.Color _lineTextColor = Windows.UI.Color.FromArgb(255, 86, 27, 141);
+        private Windows.UI.Color _lineTextColor = Windows.UI.Color.FromArgb(255, 110, 150, 170);
 
         private int _visibleLineCount = 0;
         private int _firstVisibleLine = 0;
@@ -405,7 +405,7 @@ namespace XiUWP.ViewModel
         {
             if (!_lines.Any())
                 return;
-            
+
             _firstVisibleLine = (int)Math.Max(0, ScrollValue / LINE_HEIGHT);
             _lastVisibleLine = (int)Math.Max(1, Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count));
 
@@ -457,6 +457,8 @@ namespace XiUWP.ViewModel
                                     var formattedLine = line.Text;
                                     if (formattedLine.EndsWith("\r\n"))
                                         formattedLine = formattedLine.Remove(formattedLine.Length - 2);
+                                    if (formattedLine.EndsWith("\n"))
+                                        formattedLine = formattedLine.Remove(formattedLine.Length - 1);
 
                                     var newLine = new LineSpan(
                                         formattedLine,
