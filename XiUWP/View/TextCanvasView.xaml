@@ -50,8 +50,8 @@
                 <Rectangle Width="1" VerticalAlignment="Stretch" Grid.Column="0" Grid.RowSpan="2"
                            Fill="#D2D2D2" HorizontalAlignment="Right" />
 
-                <canvas:CanvasControl x:Name="RootCanvas" Margin="4,8,16,0"
-                                      Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
+                <canvas:CanvasSwapChainPanel x:Name="RootCanvas" Margin="4,8,16,0"
+                                             Grid.Column="1" extensions:Mouse.Cursor="IBeam"/>
 
                 <Canvas IsHitTestVisible="False" Margin="4,8,16,0" Grid.Column="1">
                     <Rectangle Width="1" Height="14" x:Name="CanvasCursor" Fill="Black"

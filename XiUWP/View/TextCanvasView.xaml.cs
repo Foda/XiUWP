@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Graphics.Canvas;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -22,6 +23,7 @@ namespace XiUWP.View
 {
     public sealed partial class TextCanvasView : UserControl
     {
+        private CanvasSwapChain _swapChain;
         private TextViewModel _viewModel;
         private DispatcherTimer _blinkStartTimer;
         private HashSet<char> _charsToSkip = new HashSet<char>()
@@ -34,13 +36,11 @@ namespace XiUWP.View
         public TextCanvasView()
         {
             this.InitializeComponent();
-            
-            _viewModel = new TextViewModel(this.RootCanvas, this.GutterCanvas);
-            this.DataContext = _viewModel;
         }
 
         public async Task OpenNewDocument(string file)
         {
+            InitSwapChain();
             await _viewModel.OpenFile(file);
 
             _blinkStartTimer = new DispatcherTimer();
@@ -50,6 +50,17 @@ namespace XiUWP.View
             HookupInput();
 
             OpenHint.Visibility = Visibility.Collapsed;
+        }
+
+        private void InitSwapChain()
+        {
+            _swapChain = new CanvasSwapChain(new CanvasDevice(),
+                (int)this.RootCanvas.ActualWidth, (int)this.RootCanvas.ActualHeight, 96);
+
+            this.RootCanvas.SwapChain = _swapChain;
+
+            _viewModel = new TextViewModel(_swapChain, this.GutterCanvas);
+            this.DataContext = _viewModel;
         }
 
         private void HookupInput()
@@ -88,13 +99,11 @@ namespace XiUWP.View
             _viewModel.UpdateVisibleLineCount();
         }
 
-        private void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
+        private async void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
             Windows.UI.Core.CharacterReceivedEventArgs args)
         {
             if (_viewModel == null)
                 return;
-
-            RootCanvas.Focus(FocusState.Programmatic);
 
             var c = Convert.ToChar(args.KeyCode);
             if (_charsToSkip.Contains(c))
@@ -115,8 +124,7 @@ namespace XiUWP.View
         {
             if (_viewModel == null)
                 return;
-
-            RootCanvas.Focus(FocusState.Programmatic);
+            
             await _viewModel.KeyPressed(args.VirtualKey);
 
             ResetBlinkTimer();
@@ -132,7 +140,6 @@ namespace XiUWP.View
                 return;
 
             e.Handled = true;
-            RootCanvas.Focus(FocusState.Programmatic);
             _viewModel.PointerPressed(pointerPoint.Position);
         }
 
@@ -142,7 +149,6 @@ namespace XiUWP.View
                 return;
 
             e.Handled = true;
-            RootCanvas.Focus(FocusState.Programmatic);
 
             var pointerPoint = e.GetPosition(RootCanvas);
             _viewModel.PointerPressed(pointerPoint, 2);

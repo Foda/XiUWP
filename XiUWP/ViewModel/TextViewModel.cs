@@ -20,6 +20,7 @@ using XiUWP.Util;
 using System.Reactive;
 using Windows.UI.Core;
 using Windows.UI.Text.Core;
+using Microsoft.Graphics.Canvas;
 
 namespace XiUWP.ViewModel
 {
@@ -30,7 +31,7 @@ namespace XiUWP.ViewModel
         private double LINE_HEIGHT = 14.05078125;
         private XIService _xiService;
 
-        private CanvasControl _rootCanvas;
+        private CanvasSwapChain _rootCanvas;
         private CanvasControl _gutterCanvas;
         private CanvasTextFormat _textFormat;
         private List<LineSpan> _lines = new List<LineSpan>();
@@ -112,10 +113,10 @@ namespace XiUWP.ViewModel
             new EditAction(VirtualKey.Control, VirtualKey.T, "transpose"),
         };
 
-        public TextViewModel(CanvasControl rootCanvas, CanvasControl gutterCanvas)
+        public TextViewModel(CanvasSwapChain rootCanvas, CanvasControl gutterCanvas)
         {
             _rootCanvas = rootCanvas;
-            _rootCanvas.Draw += _rootCanvas_Draw;
+            //_rootCanvas.Draw += _rootCanvas_Draw;
 
             _gutterCanvas = gutterCanvas;
             _gutterCanvas.Draw += _gutterCanvas_Draw;
@@ -205,8 +206,8 @@ namespace XiUWP.ViewModel
 
             _xiService.Click(lineIndex, charIndex, 0, clickCount);
 
-            _rootCanvas.Invalidate();
             _isDraggingMouse = true;
+            DrawCanvas();
         }
 
         public void PointerMoved(Point position)
@@ -252,6 +253,7 @@ namespace XiUWP.ViewModel
             int cursorLine = _firstVisibleLine;
 
             var yOffset = 0;
+            var didFindLine = false;
 
             // Only check visible lines
             for (int i = _firstVisibleLine; i < _lastVisibleLine; i++)
@@ -261,7 +263,7 @@ namespace XiUWP.ViewModel
                     continue;
 
                 var offsetBounds = new Rect(0, yOffset,
-                    _rootCanvas.ActualWidth,
+                    _rootCanvas.Size.Width,
                     line.Bounds.Height);
 
                 if (offsetBounds.Contains(position))
@@ -276,14 +278,16 @@ namespace XiUWP.ViewModel
                         // Position wasn't actually inside the bounds, so set it to the end of the line
                         cursorIdx = _lines[cursorLine].Text.Length;
                     }
+                    didFindLine = true;
                     break;
                 }
 
                 cursorLine++;
                 yOffset += (int)(line.Bounds.Height);
             }
-
-            return new Tuple<int, int>(cursorLine, cursorIdx);
+            
+            return didFindLine ? new Tuple<int, int>(cursorLine, cursorIdx) : 
+                new Tuple<int, int>(CursorAnchor.LineIndex, CursorAnchor.CharacterIndex);
         }
 
         public void TextEntered(char character)
@@ -325,7 +329,7 @@ namespace XiUWP.ViewModel
 
             if (desiredGenericAction != null)
             {
-                await _xiService.GenericEdit(desiredGenericAction.Command);
+                _xiService.GenericEdit(desiredGenericAction.Command);
             }
             else
             {
@@ -370,8 +374,6 @@ namespace XiUWP.ViewModel
                         break;
                 }
             }
-
-            _rootCanvas.Invalidate();
         }
 
         public void UpdateVisibleLineCount()
@@ -379,7 +381,7 @@ namespace XiUWP.ViewModel
             if (!_lines.Any())
                 return;
             
-            var lineCount = (int)(_rootCanvas.ActualHeight / LINE_HEIGHT);
+            var lineCount = (int)(_rootCanvas.Size.Height / LINE_HEIGHT);
             _visibleLineCount = lineCount + 5;
 
             UpdateScroll();
@@ -408,12 +410,15 @@ namespace XiUWP.ViewModel
                 return;
 
             _firstVisibleLine = (int)Math.Max(0, ScrollValue / LINE_HEIGHT);
-            _lastVisibleLine = (int)Math.Max(1, Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count));
+            _lastVisibleLine = (int)Math.Max(1, Math.Min(_firstVisibleLine + _visibleLineCount, _lines.Count - 1));
+
+            // Redraw the canvas ASAP
+            DrawCanvas();
+
+            // Signal to redraw the line counts
+            _gutterCanvas.Invalidate();
 
             _xiService.Scroll(_firstVisibleLine, _lastVisibleLine);
-
-            _rootCanvas.Invalidate();
-            _gutterCanvas.Invalidate();
         }
 
         private async void UpdateTextView(XiUpdateOperation update)
@@ -466,8 +471,8 @@ namespace XiUWP.ViewModel
                                         line.Style);
 
                                     newLine.Layout(_rootCanvas, _textFormat,
-                                        (int)_rootCanvas.ActualWidth,
-                                        (int)_rootCanvas.ActualHeight);
+                                        (int)_rootCanvas.Size.Width,
+                                        (int)_rootCanvas.Size.Height);
 
                                     newLines.Add(newLine);
 
@@ -497,51 +502,55 @@ namespace XiUWP.ViewModel
                             break;
                     }
                 }
-
+                
                 // Update our line cache
                 _lines = newLines;
 
                 if (_lines.Any())
                 {
-                    ScrollViewportSize = _rootCanvas.ActualHeight;
+                    ScrollViewportSize = _rootCanvas.Size.Height;
                     MaxScroll = Math.Max(1, ((_lines.Count * LINE_HEIGHT) - ScrollViewportSize));
                     UpdateVisibleLineCount();
                 }
             }).ConfigureAwait(false);
         }
 
-        private void _rootCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
+        private void DrawCanvas()
         {
-            args.DrawingSession.Clear(Windows.UI.Colors.White);
-            args.DrawingSession.TextAntialiasing = CanvasTextAntialiasing.ClearType;
-
-            int yOffset = 0;
-            for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
+            using (CanvasDrawingSession ds = _rootCanvas.CreateDrawingSession(Windows.UI.Colors.White))
             {
-                if (_lines[i].TextLayout == null)
-                    continue;
+                ds.TextAntialiasing = CanvasTextAntialiasing.ClearType;
 
-                args.DrawingSession.DrawTextLayout(_lines[i].TextLayout,
-                        new Vector2(0, yOffset), Windows.UI.Colors.Black);
-
-                // Draw select bounds
-                if (_lines[i].HasSelectBounds)
+                int yOffset = 0;
+                for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
                 {
-                    args.DrawingSession.FillRectangle(
-                        (float)_lines[i].SelectBounds.X,
-                        yOffset,
-                        (float)_lines[i].SelectBounds.Width,
-                        (float)_lines[i].SelectBounds.Height,
-                        _selectColor);
-                }
+                    if (_lines[i].TextLayout == null)
+                        continue;
 
-                // Update cursor position
-                if (i == CursorAnchor.LineIndex)
-                {
-                    CursorAnchor.SetPosition(_lines[i], yOffset);
+                    ds.DrawTextLayout(_lines[i].TextLayout,
+                            new Vector2(0, yOffset), Windows.UI.Colors.Black);
+
+                    // Draw select bounds
+                    if (_lines[i].HasSelectBounds)
+                    {
+                        ds.FillRectangle(
+                            (float)_lines[i].SelectBounds.X,
+                            yOffset,
+                            (float)_lines[i].SelectBounds.Width,
+                            (float)_lines[i].SelectBounds.Height,
+                            _selectColor);
+                    }
+
+                    // Update cursor position
+                    if (i == CursorAnchor.LineIndex)
+                    {
+                        CursorAnchor.SetPosition(_lines[i], yOffset);
+                    }
+                    yOffset += (int)(_lines[i].Bounds.Height);
                 }
-                yOffset += (int)(_lines[i].Bounds.Height);
             }
+
+            _rootCanvas.Present();
         }
 
         private void _gutterCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
