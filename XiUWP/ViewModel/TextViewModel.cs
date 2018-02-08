@@ -84,6 +84,23 @@ namespace XiUWP.ViewModel
             private set { this.RaiseAndSetIfChanged(ref _file, value); }
         }
 
+        private bool _isSearchOpen = false;
+        public bool IsSearchOpen
+        {
+            get { return _isSearchOpen; }
+            private set { this.RaiseAndSetIfChanged(ref _isSearchOpen, value); }
+        }
+
+        private string _searchText = "hello";
+        public string SearchText
+        {
+            get { return _searchText; }
+            set { this.RaiseAndSetIfChanged(ref _searchText, value); }
+        }
+
+        public ReactiveCommand DoSearch { get; }
+        public ReactiveCommand FindNext { get; }
+
         // CoreTextEditContext Stuff
         private CoreTextEditContext _editContext;
         private CoreTextRange _selection;
@@ -134,6 +151,9 @@ namespace XiUWP.ViewModel
             {
                 Debug.WriteLine(update.ID);
             });
+
+            DoSearch = ReactiveCommand.CreateFromTask(DoSearchImpl);
+            FindNext = ReactiveCommand.CreateFromTask(FindNextImpl);
 
             //var coreTextManager = CoreTextServicesManager.GetForCurrentView();
             //_editContext = coreTextManager.CreateEditContext();
@@ -329,7 +349,7 @@ namespace XiUWP.ViewModel
 
             if (desiredGenericAction != null)
             {
-                _xiService.GenericEdit(desiredGenericAction.Command);
+                await _xiService.GenericEdit(desiredGenericAction.Command);
             }
             else
             {
@@ -370,6 +390,9 @@ namespace XiUWP.ViewModel
                             await Save();
                         }
                         break;
+                    case VirtualKey.F:
+                        IsSearchOpen = !IsSearchOpen;
+                        break;
                     default:
                         break;
                 }
@@ -385,6 +408,17 @@ namespace XiUWP.ViewModel
             _visibleLineCount = lineCount + 5;
 
             UpdateScroll();
+        }
+
+        private async Task DoSearchImpl()
+        {
+            //await _xiService.GenericEdit("cancel_operation");
+            await _xiService.Find(SearchText);
+        }
+
+        private async Task FindNextImpl()
+        {
+            await _xiService.GenericEdit("find_next");
         }
 
         private async Task ScrollToLine(XiScrollToMsg scrollTo)
@@ -517,9 +551,9 @@ namespace XiUWP.ViewModel
 
         private void DrawCanvas()
         {
-            using (CanvasDrawingSession ds = _rootCanvas.CreateDrawingSession(Windows.UI.Colors.White))
+            using (CanvasDrawingSession drawingSession = _rootCanvas.CreateDrawingSession(Windows.UI.Colors.White))
             {
-                ds.TextAntialiasing = CanvasTextAntialiasing.ClearType;
+                drawingSession.TextAntialiasing = CanvasTextAntialiasing.ClearType;
 
                 int yOffset = 0;
                 for (int i = _firstVisibleLine; i < Math.Min(_lastVisibleLine, _lines.Count); i++)
@@ -527,13 +561,13 @@ namespace XiUWP.ViewModel
                     if (_lines[i].TextLayout == null)
                         continue;
 
-                    ds.DrawTextLayout(_lines[i].TextLayout,
+                    drawingSession.DrawTextLayout(_lines[i].TextLayout,
                             new Vector2(0, yOffset), Windows.UI.Colors.Black);
 
                     // Draw select bounds
                     if (_lines[i].HasSelectBounds)
                     {
-                        ds.FillRectangle(
+                        drawingSession.FillRectangle(
                             (float)_lines[i].SelectBounds.X,
                             yOffset,
                             (float)_lines[i].SelectBounds.Width,

@@ -126,9 +126,9 @@ namespace XiBackend
                 string viewId = args.Request.Message["view_id"].ToString();
                 string parameters = args.Request.Message["params"].ToString();
 
-                //Console.ForegroundColor = ConsoleColor.Cyan;
-                //Console.WriteLine(string.Format("Received message: {0}", method));
-                //Console.WriteLine(string.Format("Params: {0}", parameters));
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine(string.Format("Received message: {0}", method));
+                Console.WriteLine(string.Format("Params: {0}", parameters));
 
                 var editMsg = new Dictionary<string, dynamic>
                 {
@@ -136,12 +136,18 @@ namespace XiBackend
                     { "view_id", viewId }
                 };
 
-                if (method == "insert")
+                if (method == "insert" || method == "find")
                 {
                     var insertParams = new Dictionary<string, dynamic>
                     {
                         { "chars", parameters }
                     };
+
+                    if (method == "find")
+                    {
+                        insertParams.Add("case_sensitive", false);
+                    }
+
                     editMsg.Add("params", insertParams);
                 }
 

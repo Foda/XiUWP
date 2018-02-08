@@ -7,8 +7,10 @@ using System.Linq;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Storage;
 using Windows.UI.Text.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -99,7 +101,7 @@ namespace XiUWP.View
             _viewModel.UpdateVisibleLineCount();
         }
 
-        private async void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
+        private void CoreWindow_CharacterReceived(Windows.UI.Core.CoreWindow sender, 
             Windows.UI.Core.CharacterReceivedEventArgs args)
         {
             if (_viewModel == null)
@@ -178,6 +180,19 @@ namespace XiUWP.View
         {
             BlinkAnim.Begin();
             _blinkStartTimer.Stop();
+        }
+
+        private async void Grid_Drop(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                if (items.Count > 0)
+                {
+                    var storageFile = items[0] as StorageFile;
+                    await OpenNewDocument(storageFile.Path);
+                }
+            }
         }
     }
 }

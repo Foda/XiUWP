@@ -115,6 +115,17 @@ namespace XiUWP.Service
             await App.Connection.SendMessageAsync(valueSet);
         }
 
+        public async Task Find(string text)
+        {
+            var valueSet = new ValueSet();
+            valueSet.Add("operation", "edit");
+            valueSet.Add("method", "find");
+            valueSet.Add("view_id", ViewID);
+            valueSet.Add("params", text);
+
+            await App.Connection.SendMessageAsync(valueSet);
+        }
+
         /// <summary>
         /// delete_backword
         /// delete_forward

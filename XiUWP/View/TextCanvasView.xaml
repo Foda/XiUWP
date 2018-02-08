@@ -17,7 +17,7 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </UserControl.Resources>
 
-    <Grid>
+    <Grid AllowDrop="True" Drop="Grid_Drop">
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
@@ -82,6 +82,15 @@
                        Minimum="0" Maximum="{Binding MaxScroll}" Value="{Binding ScrollValue, Mode=TwoWay}"
                        ViewportSize="{Binding ScrollViewportSize}"
                        Grid.Column="1"/>
+
+                <Border VerticalAlignment="Top" Visibility="{Binding IsSearchOpen, Converter={StaticResource BoolToVisibilityConverter}}" 
+                        Background="Gray" Width="300" Grid.Column="1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding SearchText}" />
+                        <Button Content="Next" Command="{Binding DoSearch}"/>
+                        <Button Content="Next" Command="{Binding FindNext}"/>
+                    </StackPanel>
+                </Border>
 
                 <uwpControls:DropShadowPanel HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                              OffsetX="0" OffsetY="0" BlurRadius="4" Color="Black"
