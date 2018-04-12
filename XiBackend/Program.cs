@@ -35,11 +35,11 @@ namespace XiBackend
             Thread appServiceThread = new Thread(new ThreadStart(ThreadProc));
             appServiceThread.Start();
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("*****************************");
-            Console.WriteLine("***** Xi Process Broker *****");
-            Console.WriteLine("*****************************");
-            Console.ReadLine();
+            //Console.ForegroundColor = ConsoleColor.Yellow;
+            //Console.WriteLine("*****************************");
+            //Console.WriteLine("***** Xi Process Broker *****");
+            //Console.WriteLine("*****************************");
+            //Console.ReadLine();
         }
 
         static async void ThreadProc()

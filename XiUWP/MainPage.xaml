@@ -20,9 +20,22 @@
                                 Click="OpenDocument_Click" AllowFocusOnInteraction="False">
                             <StackPanel Orientation="Horizontal">
                                 <SymbolIcon Symbol="OpenFile"/>
-                                <TextBlock Text="New File" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="New File" Margin="18,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+
+                        <ListView Width="200" Margin="42,32,0,0">
+                            <ListView.Header>
+                                <TextBlock Text="Recent Files" HorizontalAlignment="Left"
+                                           Style="{ThemeResource FlyoutPickerTitleTextBlockStyle}"/>
+                            </ListView.Header>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="File yo" HorizontalAlignment="Left"
+                                               FontSize="12"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
                     </StackPanel>
                 </Grid>
             </SplitView.Pane>
